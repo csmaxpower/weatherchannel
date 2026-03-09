@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(*)",
+      "Read(*)",
+      "Edit(*)",
+      "Write(*)",
+      "MultiEdit(*)",
+      "Glob(*)",
+      "Find(*)",
+      "Grep(*)",
+      "GH(*)",
+      "LS(*)",
+      "WebFetch(*)",
+      "WebSearch(*)",
+      "WebFetch(domain:community-scripts.github.io)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:github.com)",
+      "Bash(find /mnt/c/Users/randh/Documents/GitHub/weatherchannel -name \"package.json\" -exec cat {} \\\\; | head -100)",
+      "Bash(gh api repos/community-scripts/ProxmoxVE/contents/ct --jq '.[].name' 2>/dev/null | grep -i docker)",
+      "Bash(gh api repos/community-scripts/ProxmoxVE/contents/ --jq '.[].name' 2>/dev/null | head -30)",
+      "Bash(gh api repos/community-scripts/ProxmoxVE/contents 2>&1 | head -5)",
+      "Bash(gh *)",
+      "WebFetch(domain:api.github.com)",
+      "WebFetch(domain:*)"
+    ],
+    "defaultMode": "bypassPermissions"
+  }
+}

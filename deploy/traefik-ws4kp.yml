@@ -1,0 +1,15 @@
+http:
+  routers:
+    ws4kp:
+      rule: "Host(`weather.randharris.org`)"
+      entryPoints:
+        - websecure
+      service: ws4kp
+      tls:
+        certResolver: letsencrypt
+
+  services:
+    ws4kp:
+      loadBalancer:
+        servers:
+          - url: "http://10.30.0.60:8080"

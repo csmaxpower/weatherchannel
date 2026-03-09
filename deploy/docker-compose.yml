@@ -1,0 +1,14 @@
+services:
+  ws4kp:
+    build:
+      context: ..
+      dockerfile: Dockerfile.server
+    container_name: ws4kp
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - WSQS_latLonQuery=Tuscaloosa, AL 35406
+    # Uncomment to mount custom music files
+    # volumes:
+    #   - ./music:/app/server/music
