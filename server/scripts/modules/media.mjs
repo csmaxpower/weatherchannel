@@ -301,6 +301,11 @@ const setTrackName = (fileName) => {
 		baseName.replace(/\.mp3/gi, '').replace(/(_-)/gi, ''),
 	);
 	document.getElementById('musicTrack').innerHTML = trackName;
+
+	// Broadcast track name to parent window (for embedded/iframe usage)
+	if (window.parent !== window) {
+		window.parent.postMessage({ type: 'ws4kp-track', track: trackName }, '*');
+	}
 };
 
 export {
