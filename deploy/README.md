@@ -46,8 +46,8 @@ SSH into or open the console of your new Docker LXC (`10.30.0.60`), then:
 ```bash
 apt install -y git
 cd /opt
-git clone https://github.com/netbymatt/ws4kp.git
-cd ws4kp/deploy
+git clone https://github.com/csmaxpower/weatherchannel.git
+cd weatherchannel/deploy
 ```
 
 Edit `docker-compose.yml` if you want to change the default location or add custom music.
@@ -69,11 +69,11 @@ curl -s http://localhost:8080/ | head -5
 
 ## 3. Configure Traefik
 
-Copy `traefik-ws4kp.yml` to your Traefik dynamic configuration directory:
+Copy `traefik-weatherchannel.yml` to your Traefik dynamic configuration directory:
 
 ```bash
 # Example — adjust the path to match your Traefik file provider directory
-cp /opt/ws4kp/deploy/traefik-ws4kp.yml /etc/traefik/dynamic/ws4kp.yml
+cp /opt/weatherchannel/deploy/traefik-weatherchannel.yml /etc/traefik/dynamic/weatherchannel.yml
 ```
 
 If your Traefik file provider has `watch: true`, it will pick up the new config automatically. Otherwise, restart Traefik.
@@ -93,12 +93,12 @@ If Traefik is internal-only, point the A record to Traefik's internal IP instead
 1. **Direct access:** Open `http://10.30.0.60:8080` from a machine on your network
 2. **Via Traefik:** Open `https://weather.randharris.org` — should load with a valid TLS certificate
 3. **Weather data:** Search a US location to confirm the server-side proxy is working
-4. **Logs:** `docker compose -f /opt/ws4kp/deploy/docker-compose.yml logs -f` — look for cache hit/miss lines
+4. **Logs:** `docker compose -f /opt/weatherchannel/deploy/docker-compose.yml logs -f` — look for cache hit/miss lines
 
 ## Updating
 
 ```bash
-cd /opt/ws4kp
+cd /opt/weatherchannel
 git pull
 cd deploy
 docker compose up -d --build
