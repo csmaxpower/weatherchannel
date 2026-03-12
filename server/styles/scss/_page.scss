@@ -526,7 +526,8 @@ body {
 	transition: opacity 0.1s linear;
 }
 
-#divTwc:fullscreen .hidden {
+#divTwc:fullscreen .hidden,
+.embed #divTwc .hidden {
 	visibility: hidden;
 	opacity: 0;
 	transition: visibility 0s 1s, opacity 1s linear
@@ -843,8 +844,9 @@ body.kiosk #loading .instructions {
 		max-width: unset;
 	}
 
-	// Hide the menu button in embed mode
-	#NavigateMenu {
+	// Hide the menu and scanlines buttons in embed mode
+	#NavigateMenu,
+	#ToggleScanlines {
 		display: none !important;
 	}
 }
