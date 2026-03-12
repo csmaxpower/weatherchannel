@@ -72,7 +72,7 @@ const init = async () => {
 	if (!navigator.geolocation) btnGetGps.style.display = 'none';
 
 	document.querySelector('#divTwc').addEventListener('mousemove', () => {
-		if (document.fullscreenElement) updateFullScreenNavigate();
+		if (document.fullscreenElement || settings.embed.value) updateFullScreenNavigate();
 	});
 
 	document.querySelector('#btnGetLatLng').addEventListener('click', () => autoComplete.directFormSubmit());
@@ -164,6 +164,9 @@ const init = async () => {
 	// Auto-play logic: also play immediately if kiosk or embed mode is enabled
 	const play = settings.kiosk.value || urlKioskCheckbox === 'true' || settings.embed.value || urlEmbedCheckbox === 'true' ? 'true' : localStorage.getItem('play');
 	if (play === null || play === 'true') postMessage('navButton', 'play');
+
+	// Start toolbar auto-hide in embed mode
+	if (settings.embed.value) updateFullScreenNavigate();
 
 	document.querySelector('#btnClearQuery').addEventListener('click', () => {
 		document.querySelector('#spanCity').innerHTML = '';
@@ -392,7 +395,7 @@ const updateFullScreenNavigate = () => {
 	}
 
 	navigateFadeIntervalId = setTimeout(() => {
-		if (document.fullscreenElement) {
+		if (document.fullscreenElement || settings.embed.value) {
 			divTwcBottom.classList.remove('visible');
 			divTwcBottom.classList.add('hidden');
 			document.querySelector('#divTwc').classList.add('no-cursor');
