@@ -843,6 +843,10 @@ body.kiosk #loading .instructions {
 		max-width: unset;
 	}
 
+	// Hide the menu button in embed mode
+	#NavigateMenu {
+		display: none !important;
+	}
 }
 
 #divInfo {
