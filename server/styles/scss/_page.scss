@@ -853,12 +853,13 @@ body.kiosk #loading .instructions {
 	// Prevent toolbar overflow on narrow viewports
 	#divTwcBottom {
 		flex-wrap: nowrap;
-		overflow: hidden;
 		align-items: center;
+		justify-content: space-between;
 
 		> div {
-			overflow: hidden;
-			white-space: nowrap;
+			flex: 0 0 auto;
+			display: flex;
+			align-items: center;
 		}
 
 		img {
