@@ -849,6 +849,21 @@ body.kiosk #loading .instructions {
 	#ToggleScanlines {
 		display: none !important;
 	}
+
+	// Prevent toolbar wrapping and scale icons on narrow viewports
+	#divTwcBottom {
+		flex-wrap: nowrap;
+
+		img {
+			@media (max-width: 550px) {
+				transform: scale(0.5);
+			}
+
+			@media (max-width: 400px) {
+				transform: scale(0.4);
+			}
+		}
+	}
 }
 
 #divInfo {
