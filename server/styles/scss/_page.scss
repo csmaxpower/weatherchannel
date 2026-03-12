@@ -850,18 +850,22 @@ body.kiosk #loading .instructions {
 		display: none !important;
 	}
 
-	// Prevent toolbar wrapping and scale icons on narrow viewports
+	// Prevent toolbar overflow on narrow viewports
 	#divTwcBottom {
 		flex-wrap: nowrap;
+		overflow: hidden;
+		align-items: center;
+
+		> div {
+			overflow: hidden;
+			white-space: nowrap;
+		}
 
 		img {
-			@media (max-width: 550px) {
-				transform: scale(0.5);
-			}
-
-			@media (max-width: 400px) {
-				transform: scale(0.4);
-			}
+			transform: none;
+			height: 24px;
+			width: auto;
+			vertical-align: middle;
 		}
 	}
 }
