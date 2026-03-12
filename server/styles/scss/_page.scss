@@ -865,8 +865,23 @@ body.kiosk #loading .instructions {
 		img {
 			transform: none;
 			height: 24px;
-			width: auto;
+			width: 24px;
 			vertical-align: middle;
+		}
+
+		#divTwcBottomRight {
+			display: flex;
+			align-items: center;
+			gap: 4px;
+
+			#ToggleMediaContainer {
+				display: inline-flex;
+				align-items: center;
+
+				#ToggleMedia {
+					display: inline-flex;
+				}
+			}
 		}
 	}
 }
