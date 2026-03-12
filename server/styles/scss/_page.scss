@@ -872,10 +872,13 @@ body.kiosk #loading .instructions {
 		// Media container and its children must be inline-flex to prevent block expansion
 		#ToggleMediaContainer.available {
 			display: inline-flex !important;
+			flex: 0 0 24px;
+			overflow: hidden;
 		}
 
 		#ToggleMedia {
 			display: inline-flex !important;
+			flex: 0 0 24px;
 		}
 
 		// Override display: block to inline without affecting display: none toggling
