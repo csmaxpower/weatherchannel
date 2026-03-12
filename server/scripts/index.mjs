@@ -59,9 +59,9 @@ const init = async () => {
 	document.querySelector('#NavigatePlay').addEventListener('click', btnNavigatePlayClick);
 	document.querySelector('#ToggleScanlines').addEventListener('click', btnNavigateToggleScanlines);
 
-	// Hide fullscreen button on iOS since it doesn't support true fullscreen
+	// Hide fullscreen button on iOS since it doesn't support true fullscreen (except in embed mode)
 	const fullscreenButton = document.querySelector(TOGGLE_FULL_SCREEN_SELECTOR);
-	if (isIOS()) {
+	if (isIOS() && !settings.embed.value) {
 		fullscreenButton.style.display = 'none';
 	} else {
 		fullscreenButton.addEventListener('click', btnFullScreenClick);
