@@ -872,15 +872,12 @@ body.kiosk #loading .instructions {
 		#divTwcBottomRight {
 			display: flex;
 			align-items: center;
-			gap: 4px;
 
-			#ToggleMediaContainer {
-				display: inline-flex;
-				align-items: center;
-
-				#ToggleMedia {
-					display: inline-flex;
-				}
+			// Override the display: block from _media.scss that causes icons to stack vertically
+			#ToggleMediaContainer.available img.on,
+			#ToggleMediaContainer.available img.off,
+			#ToggleMediaContainer.available.playing img.on {
+				display: inline;
 			}
 		}
 	}
