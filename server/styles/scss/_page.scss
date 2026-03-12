@@ -873,6 +873,17 @@ body.kiosk #loading .instructions {
 			display: flex;
 			align-items: center;
 
+			#ToggleMediaContainer,
+			#ToggleMediaContainer.available {
+				display: inline-flex !important;
+				align-items: center;
+			}
+
+			#ToggleMedia {
+				display: inline-flex;
+				align-items: center;
+			}
+
 			// Override display: block to inline without affecting display: none toggling
 			#ToggleMediaContainer.available img.off {
 				display: inline;
