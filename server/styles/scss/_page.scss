@@ -869,6 +869,10 @@ body.kiosk #loading .instructions {
 			align-items: center;
 		}
 
+		#divTwcBottomRight {
+			justify-content: flex-end;
+		}
+
 		// Media container and its children must be inline-flex to prevent block expansion
 		#ToggleMediaContainer.available {
 			display: inline-flex !important;
