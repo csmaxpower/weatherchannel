@@ -153,8 +153,16 @@ const init = async () => {
 		settings.kiosk.value = true;
 	}
 
-	// Auto-play logic: also play immediately if kiosk mode is enabled
-	const play = settings.kiosk.value || urlKioskCheckbox === 'true' ? 'true' : localStorage.getItem('play');
+	// Handle embed mode initialization
+	const urlEmbedCheckbox = parsedParameters['settings-embed-checkbox'];
+	if (urlEmbedCheckbox === 'true') {
+		settings.embed.value = true;
+	} else if (urlEmbedCheckbox === 'false') {
+		settings.embed.value = false;
+	}
+
+	// Auto-play logic: also play immediately if kiosk or embed mode is enabled
+	const play = settings.kiosk.value || urlKioskCheckbox === 'true' || settings.embed.value || urlEmbedCheckbox === 'true' ? 'true' : localStorage.getItem('play');
 	if (play === null || play === 'true') postMessage('navButton', 'play');
 
 	document.querySelector('#btnClearQuery').addEventListener('click', () => {

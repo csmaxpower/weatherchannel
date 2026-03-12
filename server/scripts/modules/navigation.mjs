@@ -119,9 +119,9 @@ const getWeather = async (latLon, haveDataCallback) => {
 
 		// draw the progress canvas and hide others
 		hideAllCanvases();
-		if (!settings?.kiosk?.value) {
+		if (!settings?.kiosk?.value && !settings?.embed?.value) {
 			// In normal mode, hide loading screen and show progress
-			// (In kiosk mode, keep the loading screen visible until autoplay starts)
+			// (In kiosk/embed mode, keep the loading screen visible until autoplay starts)
 			document.querySelector('#loading').style.display = 'none';
 			if (progress) {
 				await progress.drawCanvas();
@@ -139,7 +139,7 @@ const getWeather = async (latLon, haveDataCallback) => {
 // receive a status update from a module {id, value}
 const updateStatus = (value) => {
 	if (value.id < 0) return;
-	if (!progress && !settings?.kiosk?.value) return;
+	if (!progress && !settings?.kiosk?.value && !settings?.embed?.value) return;
 
 	if (progress) progress.drawCanvas(displays, countLoadedDisplays());
 
@@ -227,8 +227,8 @@ const navTo = (direction) => {
 
 		if (!firstDisplay) return;
 
-		// In kiosk mode, hide the loading screen when we start showing the first display
-		if (settings?.kiosk?.value) {
+		// In kiosk/embed mode, hide the loading screen when we start showing the first display
+		if (settings?.kiosk?.value || settings?.embed?.value) {
 			document.querySelector('#loading').style.display = 'none';
 		}
 
@@ -301,9 +301,9 @@ const setPlaying = (newValue) => {
 		playButton.title = 'Play';
 		playButton.src = 'images/nav/ic_play_arrow_white_24dp_2x.png';
 	}
-	// if we're playing and on the progress screen (or in kiosk mode), jump to the next screen
+	// if we're playing and on the progress screen (or in kiosk/embed mode), jump to the next screen
 	if (playing && !currentDisplay()) {
-		if (progress || settings?.kiosk?.value) {
+		if (progress || settings?.kiosk?.value || settings?.embed?.value) {
 			navTo(msg.command.firstFrame);
 		}
 	}
@@ -334,8 +334,8 @@ const handleNavButton = (button) => {
 			postMessage({ type: 'current-weather-scroll', method: 'hide' });
 			if (progress) {
 				progress.showCanvas();
-			} else if (settings?.kiosk?.value) {
-				// In kiosk mode without progress, show the loading screen
+			} else if (settings?.kiosk?.value || settings?.embed?.value) {
+				// In kiosk/embed mode without progress, show the loading screen
 				document.querySelector('#loading').style.display = 'flex';
 			}
 			hideAllCanvases();
@@ -379,7 +379,8 @@ const resize = (force = false) => {
 
 	const isFullscreen = !!document.fullscreenElement;
 	const isKioskMode = settings.kiosk?.value || false;
-	const isMobileSafariKiosk = isIOS() && isKioskMode;	// Detect Mobile Safari in kiosk mode (regardless of standalone status)
+	const isEmbedMode = settings.embed?.value || false;
+	const isMobileSafariKiosk = isIOS() && (isKioskMode || isEmbedMode);	// Detect Mobile Safari in kiosk/embed mode (regardless of standalone status)
 	const targetWidth = settings.wide.value ? 640 + 107 + 107 : 640;
 
 	// Use window width instead of bottom container width to avoid zero-dimension issues
@@ -389,8 +390,8 @@ const resize = (force = false) => {
 	// Standard scaling: fit within both dimensions
 	const scale = Math.min(widthZoomPercent, heightZoomPercent);
 
-	// Use centering behavior for fullscreen, kiosk mode, or Mobile Safari kiosk mode
-	const isKioskLike = isFullscreen || isKioskMode || isMobileSafariKiosk;
+	// Use centering behavior for fullscreen, kiosk mode, embed mode, or Mobile Safari kiosk mode
+	const isKioskLike = isFullscreen || isKioskMode || isEmbedMode || isMobileSafariKiosk;
 
 	if (debugFlag('resize') || debugFlag('fullscreen')) {
 		console.log(`🖥️ Resize: force=${force} isKioskLike=${isKioskLike} window=${window.innerWidth}x${window.innerHeight} targetWidth=${targetWidth} widthZoom=${widthZoomPercent.toFixed(3)} heightZoom=${heightZoomPercent.toFixed(3)} finalScale=${scale.toFixed(3)} fullscreenElement=${!!document.fullscreenElement} isIOS=${isIOS()} standalone=${window.navigator.standalone} isMobileSafariKiosk=${isMobileSafariKiosk} kioskMode=${settings.kiosk?.value} wideMode=${settings.wide.value}`);

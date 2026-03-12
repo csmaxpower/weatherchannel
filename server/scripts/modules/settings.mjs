@@ -57,6 +57,23 @@ const kioskChange = (value) => {
 	}
 };
 
+const embedChange = (value) => {
+	const body = document.querySelector('body');
+	if (!body) {
+		if (value) {
+			deferredDomSettings.add('embed');
+		}
+		return;
+	}
+
+	if (value) {
+		body.classList.add('embed');
+	} else {
+		body.classList.remove('embed');
+	}
+	window.dispatchEvent(new Event('resize'));
+};
+
 const scanLineChange = (value) => {
 	const container = document.getElementById('container');
 	const navIcons = document.getElementById('ToggleScanlines');
@@ -141,6 +158,13 @@ const init = () => {
 		name: 'Sticky Kiosk',
 		defaultValue: false,
 		sticky: true,
+	});
+	settings.embed = new Setting('embed', {
+		name: 'Embed',
+		defaultValue: false,
+		changeAction: embedChange,
+		sticky: false,
+		visible: false,
 	});
 	settings.speed = new Setting('speed', {
 		name: 'Speed',

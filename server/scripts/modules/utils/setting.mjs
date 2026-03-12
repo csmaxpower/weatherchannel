@@ -16,6 +16,7 @@ const DEFAULTS = {
 // shorthand mappings for frequently used values
 const specialMappings = {
 	kiosk: 'settings-kiosk-checkbox',
+	embed: 'settings-embed-checkbox',
 };
 
 class Setting {

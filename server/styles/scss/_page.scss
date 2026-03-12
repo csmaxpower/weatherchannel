@@ -352,7 +352,8 @@ body {
 }
 
 #divTwc:fullscreen #container,
-.kiosk #divTwc #container {
+.kiosk #divTwc #container,
+.embed #divTwc #container {
 	// background-image: none;
 	width: unset;
 	height: unset;
@@ -455,7 +456,8 @@ body {
 }
 
 #divTwc:fullscreen,
-.kiosk #divTwc {
+.kiosk #divTwc,
+.embed #divTwc {
 	display: flex;
 	align-items: center;
 	justify-content: center;
@@ -467,12 +469,14 @@ body {
 }
 
 #divTwc:fullscreen #display,
-.kiosk #divTwc #display {
+.kiosk #divTwc #display,
+.embed #divTwc #display {
 	position: relative;
 }
 
 #divTwc:fullscreen #divTwcBottom,
-.kiosk #divTwc #divTwcBottom {
+.kiosk #divTwc #divTwcBottom,
+.embed #divTwc #divTwcBottom {
 	display: flex;
 	flex-direction: row;
 	background-color: rgb(0 0 0 / 0.5);
@@ -815,6 +819,30 @@ body.kiosk #loading .instructions {
 	>*:not(#divTwc) {
 		display: none !important;
 	}
+}
+
+// Embed mode: like kiosk but keeps the bottom toolbar visible
+.embed {
+	margin: 0px;
+	padding: 0px;
+	overflow: hidden;
+	width: 100vw;
+	background-color: #000000 !important;
+
+	// Hide everything except the main weather display
+	>*:not(#divTwc) {
+		display: none !important;
+	}
+
+	// Hide loading instructions
+	#loading .instructions {
+		display: none !important;
+	}
+
+	#divTwc {
+		max-width: unset;
+	}
+
 }
 
 #divInfo {

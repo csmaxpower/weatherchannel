@@ -68,7 +68,7 @@
 
 </head>
 
-<body <% if (query && query['settings-kiosk-checkbox'] === 'true' ) { %>class="kiosk" <% }%>>
+<body <% if (query && (query['settings-kiosk-checkbox'] === 'true' || query['kiosk'] === 'true')) { %>class="kiosk" <% } else if (query && (query['settings-embed-checkbox'] === 'true' || query['embed'] === 'true')) { %>class="embed" <% }%>>
 
   <div id="divQuery">
     <input id="txtLocation" type="text" value="" placeholder="ZIP Code or City, State" data-1p-ignore />
