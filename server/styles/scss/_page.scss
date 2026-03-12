@@ -854,13 +854,6 @@ body.kiosk #loading .instructions {
 	#divTwcBottom {
 		flex-wrap: nowrap;
 		align-items: center;
-		justify-content: space-between;
-
-		> div {
-			flex: 0 0 auto;
-			display: flex;
-			align-items: center;
-		}
 
 		img {
 			transform: none;
@@ -869,37 +862,37 @@ body.kiosk #loading .instructions {
 			vertical-align: middle;
 		}
 
+		#divTwcBottomLeft,
+		#divTwcBottomMiddle,
 		#divTwcBottomRight {
 			display: flex;
 			align-items: center;
+		}
 
-			#ToggleMediaContainer,
-			#ToggleMediaContainer.available {
-				display: inline-flex !important;
-				align-items: center;
-			}
+		// Media container and its children must be inline-flex to prevent block expansion
+		#ToggleMediaContainer.available {
+			display: inline-flex !important;
+		}
 
-			#ToggleMedia {
-				display: inline-flex;
-				align-items: center;
-			}
+		#ToggleMedia {
+			display: inline-flex !important;
+		}
 
-			// Override display: block to inline without affecting display: none toggling
-			#ToggleMediaContainer.available img.off {
-				display: inline;
-			}
+		// Override display: block to inline without affecting display: none toggling
+		#ToggleMediaContainer.available img.off {
+			display: inline !important;
+		}
 
-			#ToggleMediaContainer.available img.on {
-				display: none;
-			}
+		#ToggleMediaContainer.available img.on {
+			display: none !important;
+		}
 
-			#ToggleMediaContainer.available.playing img.on {
-				display: inline;
-			}
+		#ToggleMediaContainer.available.playing img.on {
+			display: inline !important;
+		}
 
-			#ToggleMediaContainer.available.playing img.off {
-				display: none;
-			}
+		#ToggleMediaContainer.available.playing img.off {
+			display: none !important;
 		}
 	}
 }
