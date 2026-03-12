@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8" />
+  <style>
+    @font-face {
+      font-family: 'Star4000';
+      src: url('../server/fonts/Star4000.woff') format('woff');
+    }
+
+    @font-face {
+      font-family: 'Star4000 Small';
+      src: url('../server/fonts/Star4000 Small.woff') format('woff');
+    }
+
+    @font-face {
+      font-family: 'Star4000 Large';
+      src: url('../server/fonts/Star4000 Large.woff') format('woff');
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      width: 1200px;
+      height: 630px;
+      overflow: hidden;
+      background: #0a0a2e;
+    }
+
+    .og-card {
+      width: 1200px;
+      height: 630px;
+      position: relative;
+      /* Scale up the 640x480 background to fill 1200x630 */
+      background-image: url('../server/images/backgrounds/1.png');
+      background-size: cover;
+      background-position: center;
+    }
+
+    /* Text shadow matching ws4kp _utils.scss mixin */
+    .ws-text {
+      text-shadow:
+        3px 3px 0 black,
+        -1.5px -1.5px 0 black,
+        0 -1.5px 0 black,
+        1.5px -1.5px 0 black,
+        1.5px 0 0 black,
+        1.5px 1.5px 0 black,
+        0 1.5px 0 black,
+        -1.5px 1.5px 0 black,
+        -1.5px 0 0 black;
+    }
+
+    /* Heavier shadow for larger text at this scale */
+    .ws-text-heavy {
+      text-shadow:
+        4px 4px 0 black,
+        -2px -2px 0 black,
+        0 -2px 0 black,
+        2px -2px 0 black,
+        2px 0 0 black,
+        2px 2px 0 black,
+        0 2px 0 black,
+        -2px 2px 0 black,
+        -2px 0 0 black;
+    }
+
+    .content {
+      position: absolute;
+      top: 100px;
+      left: 135px;
+      right: 100px;
+      bottom: 90px;
+    }
+
+    .title {
+      font-family: 'Star4000 Large', sans-serif;
+      font-size: 52px;
+      color: #FFFF00;
+      text-transform: uppercase;
+      line-height: 1.3;
+      margin-left: -25px;
+    }
+
+    .separator {
+      width: 100%;
+      height: 2px;
+      background: rgba(255, 255, 255, 0.3);
+      margin: 18px 0;
+    }
+
+    .description {
+      font-family: 'Star4000', sans-serif;
+      font-size: 34px;
+      color: white;
+      text-transform: uppercase;
+      line-height: 1.5;
+    }
+
+    .footer-bar {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 70px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 135px 0 135px;
+    }
+
+    .footer-url {
+      font-family: 'Star4000 Small', sans-serif;
+      font-size: 28px;
+      color: white;
+    }
+
+    .footer-tag {
+      font-family: 'Star4000 Small', sans-serif;
+      font-size: 24px;
+      color: #FFFF00;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="og-card">
+    <div class="content">
+      <div class="title ws-text-heavy">
+        RandHarris.Org - Weather
+      </div>
+      <div class="separator"></div>
+      <div class="description ws-text">
+        Live weather forecasts, radar,<br>
+        hourly conditions &amp; more.<br>
+        Powered by the National<br>
+        Weather Service.
+      </div>
+    </div>
+    <div class="footer-bar">
+      <div class="footer-url ws-text">https://randharris.org/weather</div>
+      <div class="footer-tag ws-text">WeatherStar 4000+</div>
+    </div>
+  </div>
+</body>
+
+</html>
