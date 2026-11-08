@@ -129,7 +129,7 @@ esac
 
 # ---------------------------------------------------------------- audio
 # MUSIC_DIR: searched recursively for *.mp3. The image bakes in server/music,
-#   which holds one subfolder per playlist (default, Christmas, ...). Point this
+#   which holds one subfolder per playlist (default, christmas, ...). Point this
 #   at the folder for the season; pointing it at /music itself plays everything
 #   mixed together. Mount your own folder over /music to replace the library.
 # MUSIC_VOLUME: linear gain on the music, 1.0 = unchanged.

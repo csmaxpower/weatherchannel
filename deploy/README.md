@@ -273,10 +273,11 @@ docker compose --profile cast up -d    # recreates only containers whose env cha
 ### Seasonal music
 
 The image carries one playlist per subfolder of `server/music` (`default`,
-`Christmas`). The caster plays whichever one `MUSIC_DIR` names:
+`christmas`). Folder names are case-sensitive inside the container; the
+caster plays whichever one `MUSIC_DIR` names:
 
 ```bash
-sed -i 's#^MUSIC_DIR=.*#MUSIC_DIR=/music/Christmas#' .env   # and back to /music/default in January
+sed -i 's#^MUSIC_DIR=.*#MUSIC_DIR=/music/christmas#' .env   # and back to /music/default in January
 docker compose --profile cast up -d
 ```
 
