@@ -128,14 +128,16 @@ case "${OUT_RANGE}" in
 esac
 
 # ---------------------------------------------------------------- audio
-# MUSIC_DIR: searched recursively for *.mp3. The image bakes in server/music;
-#   mount your own folder over /music to replace it.
+# MUSIC_DIR: searched recursively for *.mp3. The image bakes in server/music,
+#   which holds one subfolder per playlist (default, Christmas, ...). Point this
+#   at the folder for the season; pointing it at /music itself plays everything
+#   mixed together. Mount your own folder over /music to replace the library.
 # MUSIC_VOLUME: linear gain on the music, 1.0 = unchanged.
 # MUSIC_SHUFFLE: 1 reshuffles the folder on each pass, 0 plays alphabetically.
 # MUSIC=0 disables music and sends a silent track instead (some decoders and
 #   MediaMTX's RTMP output still want an audio stream to exist).
 MUSIC="${MUSIC:-1}"
-MUSIC_DIR="${MUSIC_DIR:-/music}"
+MUSIC_DIR="${MUSIC_DIR:-/music/default}"
 MUSIC_VOLUME="${MUSIC_VOLUME:-1.0}"
 MUSIC_SHUFFLE="${MUSIC_SHUFFLE:-1}"
 # How many passes through the folder to write into the playlist. ffmpeg's

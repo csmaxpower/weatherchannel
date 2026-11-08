@@ -270,6 +270,19 @@ not need a new image:
 docker compose --profile cast up -d    # recreates only containers whose env changed
 ```
 
+### Seasonal music
+
+The image carries one playlist per subfolder of `server/music` (`default`,
+`Christmas`). The caster plays whichever one `MUSIC_DIR` names:
+
+```bash
+sed -i 's#^MUSIC_DIR=.*#MUSIC_DIR=/music/Christmas#' .env   # and back to /music/default in January
+docker compose --profile cast up -d
+```
+
+To add a playlist, create a new subfolder under `server/music`, un-ignore it
+in `.gitignore` like the existing ones, commit, and the next image carries it.
+
 ---
 
 ## 7. Troubleshooting
