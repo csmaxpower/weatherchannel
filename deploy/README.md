@@ -270,19 +270,48 @@ not need a new image:
 docker compose --profile cast up -d    # recreates only containers whose env changed
 ```
 
-### Seasonal music
+### Music: seasons and adding tracks
 
 The image carries one playlist per subfolder of `server/music` (`default`,
-`christmas`). Folder names are case-sensitive inside the container; the
-caster plays whichever one `MUSIC_DIR` names:
+`christmas`, ...). Folder names are case-sensitive inside the container.
+
+**Scheduling.** `MUSIC_SCHEDULE` in `.env` switches folders by date with no
+manual step each year. The default is already Christmas from Nov 1 through
+Dec 31:
+
+```
+MUSIC_SCHEDULE=christmas=11-01:01-01
+```
+
+Entries are `folder=MM-DD:MM-DD`, comma separated. The start day is included,
+the end day is not, ranges may wrap the year end, and the first matching entry
+wins. Outside every range `MUSIC_DIR` plays. To add a season, add an entry and
+recreate the caster once:
+
+```
+MUSIC_SCHEDULE=halloween=10-01:11-01,christmas=11-01:01-01
+```
 
 ```bash
-sed -i 's#^MUSIC_DIR=.*#MUSIC_DIR=/music/christmas#' .env   # and back to /music/default in January
 docker compose --profile cast up -d
 ```
 
-To add a playlist, create a new subfolder under `server/music`, un-ignore it
-in `.gitignore` like the existing ones, commit, and the next image carries it.
+The caster re-reads the calendar hourly (`MUSIC_CHECK_INTERVAL`) in the
+container's `TZ`. When the season flips it restarts only ffmpeg, so the stream
+blips for a few seconds and the browser is untouched. The log shows
+`music: season change /music/default -> /music/christmas`.
+
+**Adding or replacing tracks.** Music is part of the image, so it rides the
+same pipeline as code:
+
+1. Drop MP3s into `server/music/<folder>/` (new folder for a new season).
+2. Commit and push to `main`. The whole `server/music` tree is tracked.
+3. Actions rebuilds both images and Watchtower swaps them in within minutes.
+   The caster restarts and the new playlist is in rotation; no step on the box.
+
+`scripts/music-report.sh` lists every track with bitrate, sample rate and
+length, and writes `server/music/TRACKS.md`. Run it after adding files; rows
+flagged **LOW** are under 96 kbps and sound noticeably worse than the rest.
 
 ---
 

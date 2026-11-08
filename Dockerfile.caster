@@ -17,7 +17,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       procps \
       wget \
       xdotool \
+      tzdata \
     && rm -rf /var/lib/apt/lists/*
+# tzdata: the seasonal music schedule compares dates in the container's TZ;
+# without zone data `date` silently falls back to UTC.
 # xdotool parks the X pointer off-screen and reads the page's liveness beacon
 # out of the window title for the entrypoint's freeze watchdog.
 

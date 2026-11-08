@@ -26,7 +26,8 @@ HEIGHT="${HEIGHT:-1080}"
 FRAMERATE="${FRAMERATE:-30}"
 DISPLAY_NUM="${DISPLAY:-:99}"
 
-log() { echo "[caster] $*"; }
+# stderr, so helpers called inside $(...) can log without polluting their result.
+log() { echo "[caster] $*" >&2; }
 
 # ---------------------------------------------------------------- channel URL
 # Either hand the caster a complete PAGE_URL, or let it build one:
@@ -128,16 +129,28 @@ case "${OUT_RANGE}" in
 esac
 
 # ---------------------------------------------------------------- audio
-# MUSIC_DIR: searched recursively for *.mp3. The image bakes in server/music,
-#   which holds one subfolder per playlist (default, christmas, ...). Point this
-#   at the folder for the season; pointing it at /music itself plays everything
-#   mixed together. Mount your own folder over /music to replace the library.
+# The image bakes in server/music, one subfolder per playlist (default,
+# christmas, ...). Mount your own folder over /music to replace the library.
+#
+# MUSIC_DIR: the year-round playlist, searched recursively for *.mp3. Pointing
+#   it at /music itself plays every folder mixed together.
+# MUSIC_SCHEDULE: seasonal overrides, comma separated, "folder=MM-DD:MM-DD".
+#   The start day is included and the end day is not, and a range may wrap
+#   the year end:  christmas=11-01:01-01  plays /music/christmas from Nov 1
+#   through Dec 31 and hands back to MUSIC_DIR on Jan 1. A folder name is
+#   relative to MUSIC_ROOT unless it starts with "/". The first matching entry
+#   wins. The date is re-checked every MUSIC_CHECK_INTERVAL seconds in the
+#   container's TZ, and a season change restarts only ffmpeg (a few seconds
+#   of stream), not the browser.
 # MUSIC_VOLUME: linear gain on the music, 1.0 = unchanged.
 # MUSIC_SHUFFLE: 1 reshuffles the folder on each pass, 0 plays alphabetically.
 # MUSIC=0 disables music and sends a silent track instead (some decoders and
 #   MediaMTX's RTMP output still want an audio stream to exist).
 MUSIC="${MUSIC:-1}"
-MUSIC_DIR="${MUSIC_DIR:-/music/default}"
+MUSIC_ROOT="${MUSIC_ROOT:-/music}"
+MUSIC_DIR="${MUSIC_DIR:-${MUSIC_ROOT}/default}"
+MUSIC_SCHEDULE="${MUSIC_SCHEDULE:-}"
+MUSIC_CHECK_INTERVAL="${MUSIC_CHECK_INTERVAL:-3600}"
 MUSIC_VOLUME="${MUSIC_VOLUME:-1.0}"
 MUSIC_SHUFFLE="${MUSIC_SHUFFLE:-1}"
 # How many passes through the folder to write into the playlist. ffmpeg's
@@ -147,10 +160,47 @@ MUSIC_SHUFFLE="${MUSIC_SHUFFLE:-1}"
 # ffmpeg, and therefore the playlist, if it ever does run out.
 MUSIC_PASSES="${MUSIC_PASSES:-1000}"
 PLAYLIST=/tmp/playlist.txt
+# The folder currently feeding ffmpeg, shared with the season checker (which
+# runs as a background job and cannot see this shell's later variables).
+MUSIC_STATE=/tmp/music-current
 
-build_playlist() {
-  local tracks
-  mapfile -t tracks < <(find "${MUSIC_DIR}" -type f -iname '*.mp3' 2>/dev/null | sort)
+# Today as MMDD in the container's TZ. MUSIC_TODAY overrides it for testing.
+today_mmdd() {
+  if [[ -n "${MUSIC_TODAY:-}" ]]; then echo "${MUSIC_TODAY}"; else date +%m%d; fi
+}
+
+# Prints the folder that should be playing today.
+active_music_dir() {
+  local today entries entry name range start end
+  today=$(today_mmdd)
+  IFS=',' read -ra entries <<< "${MUSIC_SCHEDULE}"
+  for entry in "${entries[@]}"; do
+    entry="${entry// /}"
+    [[ -z "${entry}" ]] && continue
+    name="${entry%%=*}"
+    range="${entry#*=}"
+    start="${range%%:*}"; start="${start//-/}"
+    end="${range#*:}";     end="${end//-/}"
+    if [[ "${name}" == "${entry}" || -z "${name}" || "${range}" != *:* \
+          || ! "${start}" =~ ^[0-9]{4}$ || ! "${end}" =~ ^[0-9]{4}$ ]]; then
+      log "music: ignoring malformed MUSIC_SCHEDULE entry '${entry}' (want folder=MM-DD:MM-DD)"
+      continue
+    fi
+    # 10# forces decimal: a leading zero would otherwise make bash read octal.
+    if (( 10#${start} <= 10#${end} )); then
+      (( 10#${today} >= 10#${start} && 10#${today} < 10#${end} )) || continue
+    else
+      (( 10#${today} >= 10#${start} || 10#${today} < 10#${end} )) || continue
+    fi
+    if [[ "${name}" == /* ]]; then echo "${name}"; else echo "${MUSIC_ROOT}/${name}"; fi
+    return 0
+  done
+  echo "${MUSIC_DIR}"
+}
+
+build_playlist() {  # $1 = folder
+  local dir="$1" tracks
+  mapfile -t tracks < <(find "${dir}" -type f -iname '*.mp3' 2>/dev/null | sort)
   if [[ ${#tracks[@]} -eq 0 ]]; then
     return 1
   fi
@@ -166,30 +216,66 @@ build_playlist() {
       printf "file '%s'\n" "${line//\'/\'\\\'\'}"
     done >> "${PLAYLIST}"
   done
-  log "music: ${#tracks[@]} tracks from ${MUSIC_DIR}, ${MUSIC_PASSES} passes, shuffle=${MUSIC_SHUFFLE}"
+  log "music: ${#tracks[@]} tracks from ${dir}, ${MUSIC_PASSES} passes, shuffle=${MUSIC_SHUFFLE}"
   return 0
 }
 
+# Sets AUDIO_INPUT / AUDIO_FILTER for whatever should play right now. Called
+# before every ffmpeg start, so restarting ffmpeg is all a season change needs.
 AUDIO_INPUT=()
 AUDIO_FILTER=()
-if [[ "${MUSIC}" == "1" ]] && build_playlist; then
-  # -re paces the file input at real time so it stays in step with the live
-  # x11grab video; without it ffmpeg would read audio as fast as the muxer
-  # lets it. aresample async=1 papers over the sub-second timestamp gaps
-  # between tracks (header duration vs. real length).
-  #
-  # Do NOT add first_pts=0 here. A library with mixed sample rates (this one
-  # has 48k, 44.1k and 11.025k files) makes ffmpeg rebuild the audio filter
-  # graph at every rate change, and a freshly built aresample with first_pts=0
-  # pads silence from t=0 up to the current position -- minutes of dead air
-  # at each such track boundary, then music again. Reproduced and fixed
-  # 2026-11-07; see the git history of this line.
-  AUDIO_INPUT=(-re -f concat -safe 0 -i "${PLAYLIST}")
-  AUDIO_FILTER=(-af "aresample=44100:async=1,aformat=sample_fmts=fltp:channel_layouts=stereo,volume=${MUSIC_VOLUME}")
-else
-  [[ "${MUSIC}" == "1" ]] && log "music: no mp3 files found under ${MUSIC_DIR}; sending silence"
-  AUDIO_INPUT=(-f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100)
-fi
+CURRENT_MUSIC_DIR=""
+prepare_audio() {
+  AUDIO_INPUT=()
+  AUDIO_FILTER=()
+  CURRENT_MUSIC_DIR="silence"
+  if [[ "${MUSIC}" == "1" ]]; then
+    local dir tried=""
+    for dir in "$(active_music_dir)" "${MUSIC_DIR}"; do
+      [[ "${dir}" == "${tried}" ]] && continue
+      tried="${dir}"
+      if build_playlist "${dir}"; then
+        CURRENT_MUSIC_DIR="${dir}"
+        # -re paces the file input at real time so it stays in step with the
+        # live x11grab video; without it ffmpeg would read audio as fast as the
+        # muxer lets it. aresample async=1 papers over the sub-second timestamp
+        # gaps between tracks (header duration vs. real length).
+        #
+        # Do NOT add first_pts=0 here. A library with mixed sample rates (this
+        # one has 48k, 44.1k and 11.025k files) makes ffmpeg rebuild the audio
+        # filter graph at every rate change, and a freshly built aresample with
+        # first_pts=0 pads silence from t=0 up to the current position --
+        # minutes of dead air at each such track boundary, then music again.
+        # Reproduced and fixed 2026-11-07.
+        AUDIO_INPUT=(-re -f concat -safe 0 -i "${PLAYLIST}")
+        AUDIO_FILTER=(-af "aresample=44100:async=1,aformat=sample_fmts=fltp:channel_layouts=stereo,volume=${MUSIC_VOLUME}")
+        break
+      fi
+      log "music: no mp3 files under ${dir}"
+    done
+  fi
+  if [[ "${CURRENT_MUSIC_DIR}" == "silence" ]]; then
+    [[ "${MUSIC}" == "1" ]] && log "music: sending silence"
+    AUDIO_INPUT=(-f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100)
+  fi
+  echo "${CURRENT_MUSIC_DIR}" > "${MUSIC_STATE}"
+}
+
+# Background job: when the calendar says a different folder should play, stop
+# ffmpeg. The encode loop restarts it within seconds and prepare_audio picks
+# the new folder. Nothing else (browser, X, watchdog) is touched.
+season_loop() {
+  local want have
+  while true; do
+    sleep "${MUSIC_CHECK_INTERVAL}"
+    want=$(active_music_dir)
+    have=$(cat "${MUSIC_STATE}" 2>/dev/null || true)
+    if [[ -n "${have}" && "${have}" != "silence" && "${want}" != "${have}" ]]; then
+      log "music: season change ${have} -> ${want}; restarting ffmpeg"
+      pkill -x ffmpeg || true
+    fi
+  done
+}
 
 # ---------------------------------------------------------------- watchdog
 # A browser that is alive but no longer painting is the failure this guards:
@@ -217,6 +303,7 @@ MULTICAST_TTL="${MULTICAST_TTL:-4}"
 cleanup() {
   log "shutting down"
   [[ -n "${WATCHDOG_PID:-}" ]] && kill "$WATCHDOG_PID" 2>/dev/null
+  [[ -n "${SEASON_PID:-}" ]] && kill "$SEASON_PID" 2>/dev/null
   [[ -n "${FFMPEG_PID:-}" ]] && kill "$FFMPEG_PID" 2>/dev/null
   [[ -n "${CHROME_PID:-}" ]] && kill "$CHROME_PID" 2>/dev/null
   [[ -n "${XVFB_PID:-}"   ]] && kill "$XVFB_PID"   2>/dev/null
@@ -384,11 +471,20 @@ fi
 
 TEE_TARGET=$(IFS='|'; echo "${OUTPUTS[*]}")
 
+# ---------------------------------------------------------------- season checker
+if [[ "${MUSIC}" == "1" && -n "${MUSIC_SCHEDULE}" ]]; then
+  season_loop &
+  SEASON_PID=$!
+  log "music schedule: ${MUSIC_SCHEDULE} (checked every ${MUSIC_CHECK_INTERVAL}s, TZ=${TZ:-UTC})"
+fi
+
 # ---------------------------------------------------------------- encode loop
 # ffmpeg is supervised: if MediaMTX restarts or the network blips, the encode
-# dies and must come straight back.
+# dies and must come straight back. The playlist is rebuilt on every start so
+# a season change (or new music mounted over /music) only needs a restart.
 while true; do
-  log "starting ffmpeg (${PIX_FMT}, ${OUT_RANGE} range, crf ${CRF}, preset ${PRESET})"
+  prepare_audio
+  log "starting ffmpeg (${PIX_FMT}, ${OUT_RANGE} range, crf ${CRF}, preset ${PRESET}, music=${CURRENT_MUSIC_DIR})"
 
   # x11grab captures full-range RGB; the scale filter converts to the chosen
   # range explicitly and the -color_* flags tag the H.264 bitstream itself, so

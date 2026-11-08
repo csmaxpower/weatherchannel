@@ -73,12 +73,16 @@ services:
       - MULTICAST_PORT=${MULTICAST_PORT:-5004}
       - MULTICAST_TTL=${MULTICAST_TTL:-4}
       # --- audio -------------------------------------------------------
-      # Music is played by ffmpeg from MUSIC_DIR (baked into the image from
-      # server/music, one subfolder per playlist). Swap seasons by changing
-      # MUSIC_DIR in .env and re-running `docker compose --profile cast up -d`.
+      # Music is played by ffmpeg from the image's /music, one subfolder per
+      # playlist. MUSIC_DIR is the year-round folder; MUSIC_SCHEDULE switches
+      # to other folders by date ("folder=MM-DD:MM-DD", comma separated, end
+      # day excluded, may wrap the year). The caster checks the date every
+      # MUSIC_CHECK_INTERVAL seconds and restarts only ffmpeg on a change.
       # MUSIC=0 sends silence instead.
       - MUSIC=${MUSIC:-1}
       - MUSIC_DIR=${MUSIC_DIR:-/music/default}
+      - MUSIC_SCHEDULE=${MUSIC_SCHEDULE:-christmas=11-01:01-01}
+      - MUSIC_CHECK_INTERVAL=${MUSIC_CHECK_INTERVAL:-3600}
       - MUSIC_VOLUME=${MUSIC_VOLUME:-1.0}
       - MUSIC_SHUFFLE=${MUSIC_SHUFFLE:-1}
       # --- capture geometry --------------------------------------------

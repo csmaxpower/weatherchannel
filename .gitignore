@@ -2,14 +2,8 @@ node_modules
 **/debug.log
 server/scripts/custom.js
 
-#music folder
-server/music/*
-#except for the readme
-!server/music/readme.txt
-#and the sample songs
-!server/music/default
-#and the Christmas songs
-!server/music/christmas
+#music folder: this fork ships its own library and bakes it into the images,
+#so every subfolder of server/music is tracked (one folder per playlist)
 
 #dist folder
 dist/*
