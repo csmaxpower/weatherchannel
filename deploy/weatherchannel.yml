@@ -1,0 +1,35 @@
+---
+# Service Configuration: WeatherChannel
+# Access: https://weather.randharris.org
+
+http:
+  routers:
+    weatherchannel:
+      rule: "Host(`weather.randharris.org`)"
+      entryPoints:
+        - websecure
+      service: weatherchannel-service
+      middlewares:
+        - compression@file
+      tls:
+        certResolver: cloudflare
+        domains:
+          - main: "*.randharris.org"
+            sans:
+              - "randharris.org"
+
+  services:
+    weatherchannel-service:
+      loadBalancer:
+        servers:
+          - url: "http://10.30.0.60:8080"
+        passHostHeader: true
+        healthCheck:
+          path: /
+          interval: 30s
+          timeout: 5s
+
+# Notes:
+# - Weather channel service on port 8080
+# - Health check monitors backend availability
+# - Compression middleware reduces bandwidth

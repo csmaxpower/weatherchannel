@@ -1,0 +1,959 @@
+<!DOCTYPE HTML>
+<html>
+
+<head>
+  <title>Rand Harris | Weather</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+
+  <!-- OpenGraph / Link Preview -->
+  <meta property="og:title" content="WeatherStar 4000+" />
+  <meta property="og:description"
+    content="Live weather forecasts, radar, hourly conditions & more. Powered by the National Weather Service." />
+  <meta property="og:image" content="../assets/images/og-weather.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:url" content="https://randharris.org/weather" />
+  <meta property="og:type" content="website" />
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="WeatherStar 4000+" />
+  <meta name="twitter:description"
+    content="Live weather forecasts, radar, hourly conditions & more. Powered by the National Weather Service." />
+  <meta name="twitter:image" content="../assets/images/og-weather.png" />
+  <link rel="stylesheet" href="../assets/css/style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+  <script src="https://kit.fontawesome.com/490e2f61fb.js" crossorigin="anonymous"></script>
+
+  <style>
+    /* Weather container styling */
+    .weather-container {
+      max-width: 1100px;
+      width: 100%;
+      margin: 1rem auto;
+      background: rgba(20, 20, 20, 0.7);
+      padding: 20px;
+      border-radius: 10px;
+      border: 2px solid var(--primary-color);
+      box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+      overflow: visible;
+      position: relative;
+      z-index: 10;
+    }
+
+    /* Main layout: sidebar | player | sidebar */
+    .weather-layout {
+      display: grid;
+      grid-template-columns: 200px 1fr 200px;
+      gap: 15px;
+      align-items: start;
+    }
+
+    /* Player iframe area */
+    .player-container {
+      position: relative;
+      width: 100%;
+      overflow: hidden;
+      z-index: 15;
+    }
+
+    .player-container iframe {
+      width: 100%;
+      aspect-ratio: 4 / 3;
+      border: 2px solid var(--primary-color);
+      position: relative;
+      z-index: 20;
+      background-color: #000;
+      box-shadow: 0 0 15px rgba(0, 255, 0, 0.2);
+    }
+
+    .player-container::before {
+      content: "";
+      position: absolute;
+      top: -5px;
+      left: -5px;
+      right: -5px;
+      bottom: -5px;
+      background: rgba(20, 20, 20, 1);
+      z-index: -1;
+      border-radius: 4px;
+    }
+
+    /* Control group (sidebars) */
+    .control-group {
+      background: rgba(0, 20, 0, 0.5);
+      border: 1px solid var(--primary-color);
+      border-radius: 5px;
+      padding: 10px;
+    }
+
+    .control-group-title {
+      font-family: 'Press Start 2P', cursive;
+      font-size: 0.55rem;
+      color: var(--primary-color);
+      margin-bottom: 10px;
+      text-shadow: 0 0 5px var(--shadow-color);
+      letter-spacing: 1px;
+    }
+
+    /* Checkbox styling */
+    .weather-option {
+      display: flex;
+      align-items: center;
+      margin-bottom: 5px;
+      cursor: pointer;
+      font-size: 0.95rem;
+      color: var(--text-color);
+      transition: color 0.2s;
+      white-space: nowrap;
+    }
+
+    .weather-option:hover {
+      color: var(--primary-color);
+    }
+
+    .weather-option input[type="checkbox"] {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 14px;
+      height: 14px;
+      border: 2px solid var(--primary-color);
+      background: var(--bg-dark);
+      margin-right: 6px;
+      cursor: pointer;
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    .weather-option input[type="checkbox"]:checked {
+      background: var(--primary-color);
+      box-shadow: 0 0 5px var(--shadow-color);
+    }
+
+    .weather-option input[type="checkbox"]:checked::after {
+      content: "";
+      position: absolute;
+      top: 0px;
+      left: 3px;
+      width: 4px;
+      height: 7px;
+      border: solid var(--bg-dark);
+      border-width: 0 2px 2px 0;
+      transform: rotate(45deg);
+    }
+
+    /* Select/dropdown styling */
+    .weather-select-row {
+      display: flex;
+      align-items: center;
+      margin-bottom: 6px;
+      font-size: 0.95rem;
+      color: var(--text-color);
+    }
+
+    .weather-select-row label {
+      margin-right: 6px;
+      white-space: nowrap;
+    }
+
+    .weather-select-row select {
+      appearance: none;
+      -webkit-appearance: none;
+      background: var(--bg-dark);
+      color: var(--tertiary-color);
+      border: 2px solid var(--primary-color);
+      padding: 3px 20px 3px 6px;
+      font-family: 'VT323', monospace;
+      font-size: 0.95rem;
+      cursor: pointer;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2300ff00' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 4px center;
+      max-width: 110px;
+    }
+
+    .weather-select-row select:focus {
+      outline: none;
+      box-shadow: 0 0 5px var(--shadow-color);
+    }
+
+    /* Location input */
+    .location-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+      position: relative;
+    }
+
+    .location-row input[type="text"] {
+      flex: 1;
+      background: var(--bg-dark);
+      color: var(--tertiary-color);
+      border: 2px solid var(--primary-color);
+      padding: 8px 12px;
+      font-family: 'VT323', monospace;
+      font-size: 1.2rem;
+      outline: none;
+    }
+
+    .location-row input[type="text"]:focus {
+      box-shadow: 0 0 8px var(--shadow-color);
+    }
+
+    .location-row input[type="text"]::placeholder {
+      color: rgba(0, 255, 0, 0.4);
+    }
+
+    .btn-load {
+      font-family: 'Press Start 2P', cursive;
+      font-size: 0.6rem;
+      background: var(--bg-dark);
+      color: var(--primary-color);
+      border: 2px solid var(--primary-color);
+      padding: 10px 16px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      letter-spacing: 1px;
+      white-space: nowrap;
+    }
+
+    .btn-load:hover {
+      background: var(--primary-color);
+      color: var(--bg-dark);
+      box-shadow: 0 0 10px var(--shadow-color);
+    }
+
+    .btn-load:active {
+      transform: translateY(2px);
+    }
+
+    /* Autocomplete dropdown */
+    .autocomplete-suggestions {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 70px;
+      /* leave room for the LOAD button */
+      background: #111;
+      border: 2px solid var(--primary-color, #00ff00);
+      border-top: none;
+      max-height: 260px;
+      overflow-y: auto;
+      overflow-x: hidden;
+      z-index: 9999;
+      box-shadow: 0 4px 16px rgba(0, 255, 0, 0.25);
+    }
+
+    .autocomplete-suggestions .suggestion {
+      padding: 8px 12px;
+      font-family: 'VT323', monospace;
+      font-size: 1.1rem;
+      color: #ccc;
+      cursor: pointer;
+      border-bottom: 1px solid rgba(0, 255, 0, 0.15);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .autocomplete-suggestions .suggestion:last-child {
+      border-bottom: none;
+    }
+
+    .autocomplete-suggestions .suggestion:hover,
+    .autocomplete-suggestions .suggestion.selected {
+      background: rgba(0, 255, 0, 0.15);
+      color: var(--primary-color, #00ff00);
+    }
+
+    .autocomplete-suggestions .suggestion strong {
+      color: var(--primary-color, #00ff00);
+      font-weight: bold;
+    }
+
+    .autocomplete-suggestions .no-results {
+      padding: 8px 12px;
+      font-family: 'VT323', monospace;
+      font-size: 1rem;
+      color: rgba(0, 255, 0, 0.4);
+      font-style: italic;
+    }
+
+    /* Headend information panel */
+    .headend-panel {
+      margin-top: 15px;
+      background: rgba(0, 20, 0, 0.5);
+      border: 1px solid var(--primary-color);
+      border-radius: 5px;
+      padding: 10px 15px;
+      display: none;
+    }
+
+    .headend-panel.visible {
+      display: block;
+    }
+
+    .headend-panel .control-group-title {
+      margin-bottom: 8px;
+    }
+
+    .headend-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 4px 20px;
+    }
+
+    .headend-item {
+      display: flex;
+      align-items: baseline;
+      font-family: 'VT323', monospace;
+      font-size: 1rem;
+      gap: 6px;
+    }
+
+    .headend-label {
+      color: rgba(0, 255, 0, 0.5);
+      white-space: nowrap;
+    }
+
+    .headend-value {
+      color: var(--primary-color, #00ff00);
+    }
+
+    .headend-value.loading {
+      color: rgba(0, 255, 0, 0.3);
+      font-style: italic;
+    }
+
+    /* Ensure CRT effects don't block interaction */
+    .scanlines,
+    .crt-effect {
+      pointer-events: none;
+    }
+
+    /* Medium screens: player on top, controls side by side below */
+    @media only screen and (max-width: 900px) {
+      .weather-layout {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .weather-layout .player-container {
+        grid-column: 1 / -1;
+        max-width: 640px;
+        margin: 0 auto;
+      }
+    }
+
+    /* Small screens: everything stacked */
+    @media only screen and (max-width: 600px) {
+      .weather-container {
+        padding: 12px;
+        margin: 0.5rem auto;
+      }
+
+      .weather-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .weather-layout .player-container {
+        grid-column: 1;
+      }
+
+      .location-row {
+        flex-direction: column;
+      }
+
+      .location-row input[type="text"] {
+        width: 100%;
+      }
+
+      .btn-load {
+        width: 100%;
+      }
+
+      .autocomplete-suggestions {
+        right: 0;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="game-container">
+    <!-- Scanlines overlay -->
+    <div class="scanlines"></div>
+
+    <!-- CRT screen effect -->
+    <div class="crt-effect"></div>
+
+    <!-- Main content -->
+    <div class="game-screen">
+      <header class="player-info">
+        <div class="player-avatar">
+          <img src="../assets/images/snes-mario3.gif" alt="snes-mario3">
+        </div>
+        <div class="player-stats">
+          <h1 class="game-title">WEATHER</h1>
+          <div class="player-class">
+            <p>CLASS: <span class="typing-effect">TECHNOLOGIST</span></p>
+            <p>SKILLS: <span>ENTREPRENEUR • STEM HOBBYIST</span></p>
+            <p>STATUS: <span class="status-online">ONLINE</span></p>
+          </div>
+        </div>
+      </header>
+
+      <div class="weather-container">
+        <!-- Location input -->
+        <div class="location-row">
+          <input type="text" id="locationInput" placeholder="Search city, ZIP, or landmark..." autocomplete="off" />
+          <button class="btn-load" id="btnLoad" type="button">LOAD</button>
+        </div>
+
+        <!-- 3-column layout: Displays | Player | Settings -->
+        <div class="weather-layout">
+          <!-- Left sidebar: Displays -->
+          <div class="control-group">
+            <div class="control-group-title">DISPLAYS</div>
+            <label class="weather-option"><input type="checkbox" data-param="current-weather-checkbox" checked />
+              Current</label>
+            <label class="weather-option"><input type="checkbox" data-param="local-forecast-checkbox" checked /> Local
+              Fcst</label>
+            <label class="weather-option"><input type="checkbox" data-param="extended-forecast-checkbox" checked />
+              Extended Fcst</label>
+            <label class="weather-option"><input type="checkbox" data-param="hourly-checkbox" checked /> Hourly</label>
+            <label class="weather-option"><input type="checkbox" data-param="hourly-graph-checkbox" checked /> Hourly
+              Graph</label>
+            <label class="weather-option"><input type="checkbox" data-param="latest-observations-checkbox" checked />
+              Observations</label>
+            <label class="weather-option"><input type="checkbox" data-param="regional-forecast-checkbox" checked />
+              Regional</label>
+            <label class="weather-option"><input type="checkbox" data-param="travel-checkbox" checked /> Travel</label>
+            <label class="weather-option"><input type="checkbox" data-param="almanac-checkbox" checked />
+              Almanac</label>
+            <label class="weather-option"><input type="checkbox" data-param="spc-outlook-checkbox" checked /> SPC
+              Outlook</label>
+            <label class="weather-option"><input type="checkbox" data-param="radar-checkbox" checked /> Radar</label>
+            <label class="weather-option"><input type="checkbox" data-param="hazards-checkbox" checked />
+              Hazards</label>
+          </div>
+
+          <!-- Center: Player iframe -->
+          <div class="player-container">
+            <iframe id="weatherFrame" src="" title="WeatherStar 4000+" allow="autoplay"></iframe>
+          </div>
+
+          <!-- Right sidebar: Settings -->
+          <div class="control-group">
+            <div class="control-group-title">SETTINGS</div>
+            <div class="weather-select-row">
+              <label>Units:</label>
+              <select id="settingsUnits" data-param="settings-units-select">
+                <option value="us">US (&deg;F)</option>
+                <option value="metric">Metric (&deg;C)</option>
+              </select>
+            </div>
+            <div class="weather-select-row">
+              <label>Speed:</label>
+              <select id="settingsSpeed" data-param="settings-speed-select">
+                <option value="0.5">0.5x</option>
+                <option value="0.75">0.75x</option>
+                <option value="1" selected>1x</option>
+                <option value="1.25">1.25x</option>
+                <option value="1.5">1.5x</option>
+              </select>
+            </div>
+            <label class="weather-option"><input type="checkbox" data-param="settings-wide-checkbox" />
+              Widescreen</label>
+            <label class="weather-option"><input type="checkbox" data-param="settings-scanLines-checkbox" checked />
+              Scan Lines</label>
+            <label class="weather-option"><input type="checkbox" data-param="settings-mediaPlaying-boolean" />
+              Music</label>
+          </div>
+        </div>
+
+        <!-- Headend Information -->
+        <div class="headend-panel" id="headendPanel">
+          <div class="control-group-title">HEADEND INFORMATION</div>
+          <div class="headend-grid">
+            <div class="headend-item"><span class="headend-label">Location:</span> <span class="headend-value"
+                id="heLocation">--</span></div>
+            <div class="headend-item"><span class="headend-label">Station:</span> <span class="headend-value"
+                id="heStation">--</span></div>
+            <div class="headend-item"><span class="headend-label">Radar:</span> <span class="headend-value"
+                id="heRadar">--</span></div>
+            <div class="headend-item"><span class="headend-label">Zone:</span> <span class="headend-value"
+                id="heZone">--</span></div>
+            <div class="headend-item"><span class="headend-label">Office:</span> <span class="headend-value"
+                id="heOffice">--</span></div>
+            <div class="headend-item"><span class="headend-label">Grid X,Y:</span> <span class="headend-value"
+                id="heGrid">--</span></div>
+            <div class="headend-item"><span class="headend-label">Music:</span> <span class="headend-value"
+                id="heMusic">Not playing</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Navigation with Home link -->
+      <nav class="game-controls">
+        <ul>
+          <li class="home-link">
+            <a href="../index.html" class="control-btn">
+              <span class="btn-icon"><i class="fa-solid fa-house"></i></span>
+              <span class="btn-text">HOME</span>
+            </a>
+          </li>
+        </ul>
+      </nav>
+
+      <footer class="game-footer">
+        <div class="pixel-border-top"></div>
+        <p>PLAYER SESSION: ACTIVE // LAST SAVE: <span id="current-date"></span></p>
+      </footer>
+    </div>
+  </div>
+
+  <!-- Audio toggle -->
+  <div class="audio-control">
+    <button id="toggleAudio" aria-label="Toggle background music">
+      <i class="fa-solid fa-volume-high"></i>
+    </button>
+  </div>
+
+  <!-- Audio files -->
+  <audio id="bgm" loop>
+    <source src="../assets/audio/retro-bgm.mp3" type="audio/mpeg">
+  </audio>
+  <audio id="btnSound">
+    <source src="../assets/audio/button-press.mp3" type="audio/mpeg">
+  </audio>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      // Current date for footer
+      var now = new Date();
+      var months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+      var formattedDate = months[now.getMonth()] + '.' + now.getDate() + '.' + now.getFullYear();
+      document.getElementById('current-date').textContent = formattedDate;
+
+      // Audio controls
+      var bgm = document.getElementById('bgm');
+      var btnSound = document.getElementById('btnSound');
+      var toggleBtn = document.getElementById('toggleAudio');
+
+      toggleBtn.addEventListener('click', function () {
+        if (bgm.paused) {
+          bgm.volume = 0.2;
+          bgm.play();
+          toggleBtn.innerHTML = '<i class="fa-solid fa-volume-high"></i>';
+        } else {
+          bgm.pause();
+          toggleBtn.innerHTML = '<i class="fa-solid fa-volume-xmark"></i>';
+        }
+      });
+
+      // Button hover sound effects
+      var buttons = document.querySelectorAll('.control-btn');
+      buttons.forEach(function (button) {
+        button.addEventListener('mouseenter', function () {
+          if (!bgm.paused) {
+            btnSound.volume = 0.3;
+            btnSound.currentTime = 0;
+            btnSound.play();
+          }
+        });
+      });
+
+      // =============================================
+      // Weather player logic
+      // =============================================
+      var BASE_URL = 'https://weather.randharris.org';
+      var locationInput = document.getElementById('locationInput');
+      var btnLoad = document.getElementById('btnLoad');
+      var weatherFrame = document.getElementById('weatherFrame');
+
+      // Store resolved lat/lon from autocomplete selection
+      var resolvedLatLon = null;
+
+      // ----- ArcGIS Autocomplete -----
+      var ARCGIS_SUGGEST = 'https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/suggest';
+      var ARCGIS_FIND = 'https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/find';
+      var SUGGEST_CATEGORIES = [
+        'Land Features',
+        'Bay', 'Channel', 'Cove', 'Dam', 'Delta', 'Gulf', 'Lagoon', 'Lake', 'Ocean',
+        'Reef', 'Reservoir', 'Sea', 'Sound', 'Strait', 'Waterfall', 'Wharf',
+        'Amusement Park', 'Historical Monument', 'Landmark', 'Tourist Attraction', 'Zoo',
+        'College',
+        'Beach', 'Campground', 'Golf Course', 'Harbor', 'Nature Reserve',
+        'Other Parks and Outdoors', 'Park', 'Racetrack', 'Scenic Overlook', 'Ski Resort',
+        'Sports Center', 'Sports Field', 'Wildlife Reserve',
+        'Airport', 'Ferry', 'Marina', 'Pier', 'Port', 'Resort',
+        'Postal', 'Populated Place'
+      ].join(',');
+
+      var suggestionsDiv = null;
+      var suggestions = [];
+      var selectedIndex = -1;
+      var debounceTimer = null;
+      var cachedResults = {};
+
+      function createSuggestionsContainer() {
+        suggestionsDiv = document.createElement('div');
+        suggestionsDiv.className = 'autocomplete-suggestions';
+        suggestionsDiv.style.display = 'none';
+        // Insert after the input inside .location-row
+        locationInput.parentNode.appendChild(suggestionsDiv);
+
+        suggestionsDiv.addEventListener('mouseover', function (e) {
+          if (e.target.classList.contains('suggestion')) {
+            deselectAll();
+            e.target.classList.add('selected');
+            selectedIndex = parseInt(e.target.dataset.index, 10);
+          }
+        });
+
+        suggestionsDiv.addEventListener('mouseout', function (e) {
+          if (e.target.classList.contains('suggestion')) {
+            e.target.classList.remove('selected');
+            selectedIndex = -1;
+          }
+        });
+
+        suggestionsDiv.addEventListener('click', function (e) {
+          var target = e.target.closest('.suggestion');
+          if (target) {
+            selectSuggestion(parseInt(target.dataset.index, 10));
+          }
+        });
+
+        // Hide on outside click
+        document.addEventListener('click', function (e) {
+          if (e.target !== locationInput && !suggestionsDiv.contains(e.target)) {
+            hideSuggestions();
+          }
+        });
+      }
+
+      function hideSuggestions() {
+        suggestionsDiv.style.display = 'none';
+      }
+
+      function showSuggestions() {
+        suggestionsDiv.style.removeProperty('display');
+      }
+
+      function deselectAll() {
+        suggestionsDiv.querySelectorAll('.suggestion.selected').forEach(function (el) {
+          el.classList.remove('selected');
+        });
+        selectedIndex = -1;
+      }
+
+      function escapeRegex(str) {
+        return str.replace(/[/\-\\^$*+?.()|[\]{}]/g, '\\$&');
+      }
+
+      function highlightMatch(text, query) {
+        if (!query) return escapeHtml(text);
+        var pattern = new RegExp('(' + escapeRegex(query) + ')', 'gi');
+        return escapeHtml(text).replace(pattern, '<strong>$1</strong>');
+      }
+
+      function escapeHtml(str) {
+        var div = document.createElement('div');
+        div.appendChild(document.createTextNode(str));
+        return div.innerHTML;
+      }
+
+      function renderSuggestions(query) {
+        if (suggestions.length === 0) {
+          suggestionsDiv.innerHTML = '<div class="no-results">No results found</div>';
+          showSuggestions();
+          return;
+        }
+        var html = suggestions.map(function (s, i) {
+          return '<div class="suggestion" data-index="' + i + '">' + highlightMatch(s.text, query) + '</div>';
+        }).join('');
+        suggestionsDiv.innerHTML = html;
+        showSuggestions();
+      }
+
+      function fetchSuggestions(query) {
+        if (cachedResults[query]) {
+          suggestions = cachedResults[query];
+          renderSuggestions(query);
+          return;
+        }
+        var url = ARCGIS_SUGGEST
+          + '?f=json&countryCode=USA&maxSuggestions=10'
+          + '&category=' + encodeURIComponent(SUGGEST_CATEGORIES)
+          + '&text=' + encodeURIComponent(query);
+
+        fetch(url)
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            suggestions = (data.suggestions || []).map(function (s) {
+              return { text: s.text, magicKey: s.magicKey };
+            });
+            cachedResults[query] = suggestions;
+            renderSuggestions(query);
+          })
+          .catch(function () {
+            suggestions = [];
+            hideSuggestions();
+          });
+      }
+
+      function selectSuggestion(index) {
+        var s = suggestions[index];
+        if (!s) return;
+        locationInput.value = s.text;
+        hideSuggestions();
+
+        // Resolve to lat/lon via ArcGIS find
+        var url = ARCGIS_FIND
+          + '?f=json'
+          + '&text=' + encodeURIComponent(s.text)
+          + '&magicKey=' + encodeURIComponent(s.magicKey);
+
+        fetch(url)
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            var loc = data.locations && data.locations[0];
+            if (loc) {
+              var geom = loc.feature.geometry;
+              resolvedLatLon = {
+                lat: Math.round(geom.y * 10000) / 10000,
+                lon: Math.round(geom.x * 10000) / 10000
+              };
+            }
+            loadWeather();
+          })
+          .catch(function () {
+            // Fall back to text-based lookup
+            resolvedLatLon = null;
+            loadWeather();
+          });
+      }
+
+      // Keyboard handling for autocomplete
+      locationInput.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
+          hideSuggestions();
+          return;
+        }
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          if (suggestions.length === 0) return;
+          deselectAll();
+          selectedIndex = Math.min(selectedIndex + 1, suggestions.length - 1);
+          var items = suggestionsDiv.querySelectorAll('.suggestion');
+          if (items[selectedIndex]) items[selectedIndex].classList.add('selected');
+          return;
+        }
+        if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          if (suggestions.length === 0) return;
+          deselectAll();
+          selectedIndex = Math.max(selectedIndex - 1, 0);
+          var items = suggestionsDiv.querySelectorAll('.suggestion');
+          if (items[selectedIndex]) items[selectedIndex].classList.add('selected');
+          return;
+        }
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          if (selectedIndex >= 0 && suggestions[selectedIndex]) {
+            selectSuggestion(selectedIndex);
+          } else if (suggestions.length > 0) {
+            // Auto-select first suggestion
+            selectSuggestion(0);
+          } else {
+            // No suggestions, just load with text as-is
+            resolvedLatLon = null;
+            loadWeather();
+          }
+          return;
+        }
+      });
+
+      // Trigger suggestions on typing (debounced)
+      locationInput.addEventListener('input', function () {
+        resolvedLatLon = null; // Clear resolved coords when user edits text
+        clearTimeout(debounceTimer);
+        var query = locationInput.value.trim();
+        if (query.length < 3) {
+          hideSuggestions();
+          suggestions = [];
+          return;
+        }
+        debounceTimer = setTimeout(function () {
+          fetchSuggestions(query);
+        }, 300);
+      });
+
+      // Select all on focus
+      locationInput.addEventListener('focus', function (e) {
+        e.target.select();
+      });
+
+      createSuggestionsContainer();
+
+      // ----- Music track listener (via postMessage from iframe) -----
+      window.addEventListener('message', function (e) {
+        if (e.data && e.data.type === 'ws4kp-track') {
+          document.getElementById('heMusic').textContent = e.data.track || 'Not playing';
+        }
+      });
+
+      // ----- Headend Information -----
+      var headendPanel = document.getElementById('headendPanel');
+
+      function setHeadendLoading() {
+        headendPanel.classList.add('visible');
+        ['heLocation', 'heStation', 'heRadar', 'heZone', 'heOffice', 'heGrid'].forEach(function (id) {
+          var el = document.getElementById(id);
+          el.textContent = 'Loading...';
+          el.classList.add('loading');
+        });
+      }
+
+      function clearHeadendLoading() {
+        ['heLocation', 'heStation', 'heRadar', 'heZone', 'heOffice', 'heGrid'].forEach(function (id) {
+          document.getElementById(id).classList.remove('loading');
+        });
+      }
+
+      function fetchHeadendInfo(lat, lon) {
+        setHeadendLoading();
+
+        var url = 'https://api.weather.gov/points/' + lat.toFixed(4) + ',' + lon.toFixed(4);
+        fetch(url, {
+          headers: { 'User-Agent': 'Weatherstar 4000+; weatherstar@netbymatt.com' }
+        })
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            var props = data.properties;
+            if (!props) throw new Error('No properties in response');
+
+            var relLoc = props.relativeLocation && props.relativeLocation.properties;
+            var city = relLoc ? relLoc.city : '';
+            var state = relLoc ? relLoc.state : '';
+
+            document.getElementById('heLocation').textContent = city && state ? city + ', ' + state : lat.toFixed(4) + ', ' + lon.toFixed(4);
+            document.getElementById('heStation').textContent = '--'; // Resolved below
+            document.getElementById('heRadar').textContent = props.radarStation ? props.radarStation.substr(-3) : '--';
+            document.getElementById('heZone').textContent = props.forecastZone ? props.forecastZone.substr(-6) : '--';
+            document.getElementById('heOffice').textContent = props.cwa || '--';
+            document.getElementById('heGrid').textContent = props.gridX != null && props.gridY != null ? props.gridX + ',' + props.gridY : '--';
+            clearHeadendLoading();
+
+            // Fetch observation station ID
+            if (props.observationStations) {
+              fetch(props.observationStations)
+                .then(function (r) { return r.json(); })
+                .then(function (stations) {
+                  var stationId = stations.features && stations.features[0] && stations.features[0].properties.stationIdentifier;
+                  document.getElementById('heStation').textContent = stationId || '--';
+                })
+                .catch(function () {
+                  document.getElementById('heStation').textContent = '--';
+                });
+            }
+          })
+          .catch(function () {
+            document.getElementById('heLocation').textContent = lat.toFixed(4) + ', ' + lon.toFixed(4);
+            ['heStation', 'heRadar', 'heZone', 'heOffice', 'heGrid'].forEach(function (id) {
+              document.getElementById(id).textContent = '--';
+            });
+            clearHeadendLoading();
+          });
+      }
+
+      // ----- Permalink Builder & Loader -----
+      function buildPermalink() {
+        var params = new URLSearchParams();
+        var location = locationInput.value.trim();
+
+        if (!location) return null;
+
+        params.set('latLonQuery', location);
+        params.set('settings-kiosk-checkbox', 'true');
+
+        // Include resolved lat/lon if available (faster load, no server-side geocode needed)
+        if (resolvedLatLon) {
+          params.set('latLon', JSON.stringify(resolvedLatLon));
+        }
+
+        // Gather all checkboxes
+        document.querySelectorAll('.weather-option input[type="checkbox"]').forEach(function (cb) {
+          var param = cb.getAttribute('data-param');
+          if (param) {
+            params.set(param, cb.checked ? 'true' : 'false');
+          }
+        });
+
+        // Gather all selects
+        document.querySelectorAll('[data-param]').forEach(function (el) {
+          if (el.tagName === 'SELECT') {
+            params.set(el.getAttribute('data-param'), el.value);
+          }
+        });
+
+        return BASE_URL + '/?' + params.toString();
+      }
+
+      function loadWeather() {
+        var url = buildPermalink();
+        if (url) {
+          weatherFrame.src = url;
+          // Fetch headend info if we have resolved coordinates
+          if (resolvedLatLon) {
+            fetchHeadendInfo(resolvedLatLon.lat, resolvedLatLon.lon);
+          }
+        }
+      }
+
+      btnLoad.addEventListener('click', function () {
+        if (resolvedLatLon) {
+          loadWeather();
+        } else {
+          // Resolve the typed text first, then load
+          var query = locationInput.value.trim();
+          if (!query) return;
+
+          var url = ARCGIS_FIND + '?f=json&text=' + encodeURIComponent(query);
+          fetch(url)
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+              var loc = data.locations && data.locations[0];
+              if (loc) {
+                var geom = loc.feature.geometry;
+                resolvedLatLon = {
+                  lat: Math.round(geom.y * 10000) / 10000,
+                  lon: Math.round(geom.x * 10000) / 10000
+                };
+                // Update text to the resolved name
+                locationInput.value = loc.name || query;
+              }
+              loadWeather();
+            })
+            .catch(function () {
+              loadWeather(); // Fall back to text-only
+            });
+        }
+      });
+
+      // Re-load on checkbox/select changes if location is set
+      document.querySelectorAll('[data-param]').forEach(function (el) {
+        el.addEventListener('change', function () {
+          if (locationInput.value.trim() && weatherFrame.src) {
+            loadWeather();
+          }
+        });
+      });
+    });
+  </script>
+</body>
+
+</html>
