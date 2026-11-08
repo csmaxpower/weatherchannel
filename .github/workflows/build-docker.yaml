@@ -1,57 +1,174 @@
-name: build-docker
+name: Build and Push Docker Images
+
+# Publishes two images to GitHub Container Registry on every push to main:
+#   ghcr.io/<owner>/weatherchannel-web     (Dockerfile.server: app + proxy)
+#   ghcr.io/<owner>/weatherchannel-caster  (Dockerfile.caster: kiosk -> video)
+# tagged `latest` and vX.Y.Z, then cuts a GitHub Release. Watchtower on the
+# LXC (deploy/docker-compose.yml) tracks `latest` and redeploys itself.
+#
+# No secrets to configure: the workflow authenticates to ghcr.io with the
+# job's own GITHUB_TOKEN (hence `packages: write` below). After the first
+# push, set each package's visibility to Public (GitHub -> your profile ->
+# Packages -> weatherchannel-web -> Package settings) so the LXC can pull
+# without logging in; see deploy/README.md section 1.
 
 on:
   push:
-    branches:
-      - '**'
-    tags:
-      - 'v*.*.*'
-      - 'v*.*'
+    branches: [main]
+    # Documentation-only commits should not spend a build or burn a version.
+    paths-ignore:
+      - '**.md'
+      - 'deploy/**'
+      - '.gitignore'
+      - '.gitattributes'
+      - '.github/ISSUE_TEMPLATE/**'
+      - '.github/FUNDING.yml'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g. 1.2.0). Leave blank to auto-increment patch.'
+        required: false
+        type: string
+      caster:
+        description: 'Also build the caster image (slow: pulls Chromium + ffmpeg)'
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+  packages: write
 
 jobs:
-  build:
-    name: Build Image
+  version:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v4
-      - name: Docker meta
-        id: meta
-        uses: docker/metadata-action@v5
         with:
-          images: |
-            ghcr.io/netbymatt/ws4kp
-          flavor: |
-            latest=false
-          tags: |
-            type=raw,priority=1000,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
-            type=ref,event=branch
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}}
-            type=sha
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-      - name: Set up Buildx
+          fetch-depth: 0
+
+      - name: Determine version tag
+        id: version
+        run: |
+          set -euo pipefail
+          if [[ -n "${{ inputs.version }}" ]]; then
+            TAG="v${{ inputs.version }}"
+          else
+            # Auto-increment the patch from the newest vX.Y.Z tag.
+            LATEST=$(git tag --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n1 || true)
+            if [[ -z "$LATEST" ]]; then
+              TAG="v0.1.0"
+            else
+              BARE="${LATEST#v}"
+              MAJOR="${BARE%%.*}"
+              REST="${BARE#*.}"
+              MINOR="${REST%%.*}"
+              PATCH="${REST#*.}"
+              TAG="v${MAJOR}.${MINOR}.$((PATCH + 1))"
+            fi
+          fi
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "Version for this build: ${TAG}"
+
+  build:
+    needs: version
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: web
+            dockerfile: Dockerfile.server
+            image: weatherchannel-web
+          - name: caster
+            dockerfile: Dockerfile.caster
+            image: weatherchannel-caster
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # The caster image is large and rarely changes. Skip it on a manual run
+      # where the box was unticked; always build it on a push to main.
+      - name: Decide whether to build this image
+        id: gate
+        run: |
+          if [[ "${{ matrix.name }}" == "caster" && "${{ github.event_name }}" == "workflow_dispatch" && "${{ inputs.caster }}" != "true" ]]; then
+            echo "build=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Docker Buildx
+        if: steps.gate.outputs.build == 'true'
         uses: docker/setup-buildx-action@v3
-      - name: Login to GitHub Container Registry
+
+      - name: Log in to GitHub Container Registry
+        if: steps.gate.outputs.build == 'true'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build and Push
-        id: docker_build
+
+      - name: Extract metadata
+        if: steps.gate.outputs.build == 'true'
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          # metadata-action lower-cases the path, which ghcr.io requires.
+          images: ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=${{ needs.version.outputs.tag }}
+          labels: |
+            org.opencontainers.image.title=${{ matrix.image }}
+            org.opencontainers.image.version=${{ needs.version.outputs.tag }}
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+
+      # amd64 only: the Proxmox LXCs are x86 and an arm64 Chromium install
+      # under QEMU would add the better part of an hour to the caster build.
+      - name: Build and push
+        if: steps.gate.outputs.build == 'true'
         uses: docker/build-push-action@v6
         with:
           context: .
-          pull: true
-          push: ${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/') }}
-          platforms: linux/amd64,linux/arm64/v8
+          file: ${{ matrix.dockerfile }}
+          platforms: linux/amd64
+          push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # Cache per image so the two builds don't evict each other.
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}
+
+  release:
+    needs: [version, build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.version.outputs.tag }}
+          name: ${{ needs.version.outputs.tag }}
+          generate_release_notes: true
+          body: |
+            Images published to GitHub Container Registry as `${{ needs.version.outputs.tag }}` and `latest`:
+
+            - `ghcr.io/${{ github.repository_owner }}/weatherchannel-web`
+            - `ghcr.io/${{ github.repository_owner }}/weatherchannel-caster`
+
+            Watchtower on the LXC polls ghcr.io every 5 minutes and will pull
+            and restart the containers automatically. To deploy immediately:
+
+            ```bash
+            cd /opt/weatherchannel/deploy && docker compose --profile cast pull && docker compose --profile cast up -d
+            ```

@@ -153,6 +153,10 @@ const init = async () => {
 		settings.kiosk.value = true;
 	}
 
+	// kiosk mode is what the caster captures for the 24/7 stream; give its
+	// watchdog a way to tell a live page from a frozen one
+	if (settings.kiosk.value) startCasterBeacon();
+
 	// Handle embed mode initialization
 	const urlEmbedCheckbox = parsedParameters['settings-embed-checkbox'];
 	if (urlEmbedCheckbox === 'true') {
@@ -193,6 +197,28 @@ const init = async () => {
 	// register hidden settings for search and location query
 	registerHiddenSetting('latLonQuery', () => localStorage.getItem('latLonQuery'));
 	registerHiddenSetting('latLon', () => localStorage.getItem('latLon'));
+};
+
+// Liveness beacon for the caster (caster/entrypoint.sh).
+//
+// A page that stops painting is invisible to the capture pipeline: x11grab goes
+// on grabbing the last framebuffer and ffmpeg goes on encoding it, so the
+// stream shows a frozen forecast rather than failing. Publishing a counter in
+// the document title, advanced from requestAnimationFrame, gives the caster's
+// watchdog something it can read with xdotool and no extra port or process.
+// A title that stops changing means the page is no longer painting.
+const startCasterBeacon = () => {
+	let beacon = 0;
+	let last = 0;
+	const tick = (now) => {
+		if (now - last >= 1000) {
+			last = now;
+			beacon += 1;
+			document.title = `ws4kp ${beacon}`;
+		}
+		requestAnimationFrame(tick);
+	};
+	requestAnimationFrame(tick);
 };
 
 const geocodeLatLonQuery = async (query) => {

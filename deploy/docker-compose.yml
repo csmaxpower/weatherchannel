@@ -1,14 +1,139 @@
+# Production deployment: pulls images published to GitHub Container Registry
+# (ghcr.io) by GitHub Actions
+# (.github/workflows/build-docker.yaml). Watchtower polls for new tags and
+# redeploys automatically, so a commit to main reaches the LXC without anyone
+# logging in.
+#
+# Copy .env.example to .env in this directory and set CHANNEL_ZIP.
+#
+# To build locally from source instead (development), add the override file:
+#   docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
+
 services:
+  # The WeatherStar 4000+ web app and its caching proxy to weather.gov.
+  # Serves the normal site on 8080 (Traefik -> weather.randharris.org) and the
+  # kiosk page the caster captures.
   ws4kp:
-    build:
-      context: ..
-      dockerfile: Dockerfile.server
+    image: ghcr.io/${GHCR_OWNER:-csmaxpower}/weatherchannel-web:${IMAGE_TAG:-latest}
     container_name: ws4kp
     restart: unless-stopped
     ports:
       - "8080:8080"
     environment:
-      - WSQS_latLonQuery=Tuscaloosa, AL 35406
-    # Uncomment to mount custom music files
+      - TZ=${TZ:-America/Chicago}
+      # Default location for visitors who arrive with no query string.
+      - WSQS_latLonQuery=${CHANNEL_ZIP:-35406}
+      # Used only to generate /playlist.m3u for IPTV apps. Mirrors the caster's
+      # settings so the playlist always points at what is actually published.
+      - MULTICAST_ADDR=${MULTICAST_ADDR:-239.10.30.60}
+      - MULTICAST_PORT=${MULTICAST_PORT:-5004}
+      - MEDIAMTX_HOST=${MEDIAMTX_HOST:-10.30.0.54}
+      - MEDIAMTX_PATH=${MEDIAMTX_PATH:-weather}
+      - CHANNEL_NAME=${CHANNEL_NAME:-WeatherStar 4000+}
+    # Uncomment to replace the bundled music for the website's player. The
+    # caster has its own copy (see below); mount the same folder on both to
+    # keep them identical.
     # volumes:
     #   - ./music:/app/server/music
+    labels:
+      - "com.centurylinklabs.watchtower.scope=weather"
+
+  # Renders the kiosk page headlessly and pushes it out as video + music.
+  # Disabled by default: bring it up with `docker compose --profile cast up -d`
+  # once the MediaMTX path exists, so the web app can be deployed on its own.
+  ws4kp-caster:
+    image: ghcr.io/${GHCR_OWNER:-csmaxpower}/weatherchannel-caster:${IMAGE_TAG:-latest}
+    container_name: ws4kp-caster
+    restart: unless-stopped
+    profiles: ["cast"]
+    depends_on:
+      - ws4kp
+    # Host networking is REQUIRED for the multicast leg: on the default bridge
+    # Docker drops multicast egress before it reaches the LAN (verified on the
+    # radar deployment). Consequence: the caster reaches ws4kp on localhost,
+    # hence the WEB_URL default.
+    network_mode: host
+    environment:
+      - TZ=${TZ:-America/Chicago}
+      - WEB_URL=${WEB_URL:-http://localhost:8080/}
+      # --- the channel -------------------------------------------------
+      # CHANNEL_ZIP is the location. CHANNEL_LATLON ("lat,lon") is optional
+      # but recommended: with it the page skips the ArcGIS geocoder on every
+      # reload, so a geocoder outage cannot blank the channel. CHANNEL_QUERY
+      # appends extra permalink parameters (which displays are on, units...).
+      - CHANNEL_ZIP=${CHANNEL_ZIP:-35406}
+      - CHANNEL_LATLON=${CHANNEL_LATLON:-}
+      - CHANNEL_QUERY=${CHANNEL_QUERY:-}
+      # Or bypass the builder entirely with a full URL:
+      # - PAGE_URL=http://localhost:8080/?latLonQuery=35406&kiosk=true
+      # --- outputs -----------------------------------------------------
+      - MEDIAMTX_HOST=${MEDIAMTX_HOST:-10.30.0.54}
+      - MEDIAMTX_PATH=${MEDIAMTX_PATH:-weather}
+      - MULTICAST_ADDR=${MULTICAST_ADDR:-239.10.30.60}
+      - MULTICAST_PORT=${MULTICAST_PORT:-5004}
+      - MULTICAST_TTL=${MULTICAST_TTL:-4}
+      # --- audio -------------------------------------------------------
+      # Music is played by ffmpeg from /music (baked into the image from
+      # server/music). MUSIC=0 sends silence instead.
+      - MUSIC=${MUSIC:-1}
+      - MUSIC_VOLUME=${MUSIC_VOLUME:-1.0}
+      - MUSIC_SHUFFLE=${MUSIC_SHUFFLE:-1}
+      # --- capture geometry --------------------------------------------
+      # For 4K set 3840x2160 with DEVICE_SCALE=2.
+      - WIDTH=${WIDTH:-1920}
+      - HEIGHT=${HEIGHT:-1080}
+      - DEVICE_SCALE=${DEVICE_SCALE:-1}
+      - FRAMERATE=${FRAMERATE:-30}
+      # --- quality -----------------------------------------------------
+      # yuv420p + limited range is what set-top boxes and TV apps expect.
+      # See caster/entrypoint.sh before changing these.
+      - PIX_FMT=${PIX_FMT:-yuv420p}
+      - OUT_RANGE=${OUT_RANGE:-limited}
+      - CRF=${CRF:-18}
+      - PRESET=${PRESET:-slow}
+      - WEBRTC_COMPAT=${WEBRTC_COMPAT:-1}
+      - VIDEO_BITRATE=${VIDEO_BITRATE:-8000k}
+      - BUFSIZE=${BUFSIZE:-16000k}
+      # --- page watchdog -------------------------------------------------
+      # The page publishes a counter in its window title while in kiosk mode
+      # and the caster reloads it when that stops advancing.
+      - WATCHDOG_INTERVAL=${WATCHDOG_INTERVAL:-30}
+      - WATCHDOG_STRIKES=${WATCHDOG_STRIKES:-2}
+      # Preventive page reload, 6h by default. Set 0 to rely on the watchdog.
+      - RECYCLE_INTERVAL=${RECYCLE_INTERVAL:-21600}
+    # Uncomment to replace the bundled music the channel plays.
+    # volumes:
+    #   - ./music:/music:ro
+    shm_size: "1gb"
+    labels:
+      - "com.centurylinklabs.watchtower.scope=weather"
+
+  # Polls ghcr.io for new image tags and restarts the affected containers.
+  #
+  # Scoped with WATCHTOWER_SCOPE rather than by naming containers: ws4kp-caster
+  # sits behind the `cast` profile, and a named-but-absent container sends
+  # Watchtower into a restart loop. With a scope it watches whichever
+  # containers carry the label and simply finds fewer when the caster is down.
+  # The scope also keeps it from fighting another Watchtower on the same host.
+  watchtower:
+    image: containrrr/watchtower:1.7.1
+    container_name: ws4kp-watchtower
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      # Only needed if the ghcr.io packages are private: `docker login ghcr.io`
+      # on the host once, then uncomment so Watchtower reuses that credential.
+      # - /root/.docker/config.json:/config.json:ro
+    environment:
+      - WATCHTOWER_CLEANUP=true
+      - WATCHTOWER_INCLUDE_STOPPED=false
+      - WATCHTOWER_ROLLING_RESTART=true
+      - WATCHTOWER_SCOPE=weather
+      # containrrr/watchtower negotiates Docker API v1.25, which current
+      # daemons reject ("client version 1.25 is too old"). Pin a supported
+      # version; check yours with: docker version --format '{{.Server.APIVersion}}'
+      - DOCKER_API_VERSION=${DOCKER_API_VERSION:-1.44}
+      - TZ=${TZ:-America/Chicago}
+    labels:
+      - "com.centurylinklabs.watchtower.scope=weather"
+    command: --interval ${WATCHTOWER_POLL_INTERVAL:-300}

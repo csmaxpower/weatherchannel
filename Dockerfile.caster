@@ -1,0 +1,71 @@
+# ws4kp-caster -- renders the WeatherStar kiosk page headlessly and encodes it
+# to video for MediaMTX (RTSP) and raw MPEG-TS multicast. Adapted from the
+# FlightTrackerDisplay radar-caster; the differences are documented in
+# caster/entrypoint.sh (music audio track, 4:2:0 default, limited range).
+FROM debian:bookworm-slim
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      chromium \
+      ffmpeg \
+      xvfb \
+      x11-utils \
+      dbus-x11 \
+      fonts-liberation \
+      ca-certificates \
+      procps \
+      wget \
+      xdotool \
+    && rm -rf /var/lib/apt/lists/*
+# xdotool parks the X pointer off-screen and reads the page's liveness beacon
+# out of the window title for the entrypoint's freeze watchdog.
+
+# The music the channel plays. The web app ships the same files at
+# server/music; baking them in means the caster has sound with no volume
+# mounts. Mount your own folder over /music to change the playlist.
+COPY server/music /music
+
+COPY caster/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+# Smoke-test the real encoder invocation against the ffmpeg in THIS image, so a
+# flag this build rejects fails here instead of crash-looping in production.
+# Exercises the music path too: a concat playlist of one generated tone.
+RUN set -eux; \
+    Xvfb :77 -screen 0 320x180x24 -nolisten tcp & \
+    for _ in $(seq 1 40); do xdpyinfo -display :77 >/dev/null 2>&1 && break; sleep 0.25; done; \
+    xdpyinfo -display :77 >/dev/null; \
+    ffmpeg -hide_banner -loglevel error -f lavfi -i "sine=frequency=440:duration=2" -c:a libmp3lame -q:a 5 /tmp/tone.mp3; \
+    printf "file '/tmp/tone.mp3'\nfile '/tmp/tone.mp3'\n" > /tmp/playlist.txt; \
+    ffmpeg -hide_banner -loglevel error \
+      -f x11grab -draw_mouse 0 -framerate 10 -video_size 320x180 -i :77 \
+      -f concat -safe 0 -i /tmp/playlist.txt \
+      -t 1 \
+      -vf "scale=in_range=full:out_range=limited:flags=lanczos+accurate_rnd" \
+      -af "aresample=44100:async=1:first_pts=0,aformat=sample_fmts=fltp:channel_layouts=stereo,volume=1.0" \
+      -c:v libx264 -preset ultrafast -tune stillimage -pix_fmt yuv420p \
+      -crf 18 -maxrate 8000k -bufsize 16000k \
+      -color_range tv -colorspace bt709 -color_primaries bt709 -color_trc bt709 \
+      -x264-params "aq-mode=3:psy-rd=0.6:bframes=0" \
+      -c:a aac -b:a 128k -ar 44100 -map 0:v -map 1:a \
+      -f mpegts /tmp/smoke.ts; \
+    ffprobe -v error -select_streams v:0 -show_entries stream=color_range \
+      -of default=nw=1 /tmp/smoke.ts | grep -q 'color_range=tv'; \
+    ffprobe -v error -select_streams a:0 -show_entries stream=codec_name \
+      -of default=nw=1 /tmp/smoke.ts | grep -q 'codec_name=aac'; \
+    if ffprobe -v error -select_streams v:0 -show_frames \
+         -show_entries frame=pict_type -of csv /tmp/smoke.ts | grep -q ',B'; then \
+      echo "FAIL: stream contains B-frames; MediaMTX will refuse WebRTC readers"; \
+      exit 1; \
+    fi; \
+    echo "caster encoder smoke test passed"; \
+    rm -f /tmp/smoke.ts /tmp/tone.mp3 /tmp/playlist.txt; \
+    pkill Xvfb || true
+
+ENV DISPLAY=:99 \
+    WIDTH=1920 \
+    HEIGHT=1080 \
+    FRAMERATE=30
+
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

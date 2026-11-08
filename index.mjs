@@ -6,6 +6,7 @@ import {
 	weatherProxy, radarProxy, outlookProxy, mesonetProxy, forecastProxy,
 } from './proxy/handlers.mjs';
 import playlist from './src/playlist.mjs';
+import iptvPlaylist from './src/iptv-playlist.mjs';
 import OVERRIDES from './src/overrides.mjs';
 import cache from './proxy/cache.mjs';
 import devTools from './src/com.chrome.devtools.mjs';
@@ -134,6 +135,9 @@ if (!process.env?.STATIC) {
 
 	// Playlist route is available in server mode (not in static mode)
 	app.get('/playlist.json', playlist);
+
+	// IPTV channel playlist describing the caster's multicast/MediaMTX outputs
+	app.get(['/playlist.m3u', '/playlist.m3u8'], iptvPlaylist);
 }
 
 // Data endpoints - serve JSON data with long-term caching

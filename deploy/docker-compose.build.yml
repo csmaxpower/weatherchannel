@@ -1,0 +1,22 @@
+# Development override: build the images from this working tree instead of
+# pulling the published ones.
+#
+#   cd deploy
+#   docker compose -f docker-compose.yml -f docker-compose.build.yml up -d --build
+#
+# Useful for testing an uncommitted change on the LXC. Stop Watchtower first,
+# or it will replace your local build with the published image on its next
+# poll:
+#
+#   docker compose stop watchtower
+
+services:
+  ws4kp:
+    build:
+      context: ..
+      dockerfile: Dockerfile.server
+
+  ws4kp-caster:
+    build:
+      context: ..
+      dockerfile: Dockerfile.caster
