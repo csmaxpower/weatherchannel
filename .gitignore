@@ -8,6 +8,8 @@ server/music/*
 !server/music/readme.txt
 #and the sample songs
 !server/music/default
+#and the Christmas songs
+!server/music/christmas
 
 #dist folder
 dist/*
