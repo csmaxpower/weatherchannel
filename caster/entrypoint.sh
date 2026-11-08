@@ -173,10 +173,17 @@ AUDIO_FILTER=()
 if [[ "${MUSIC}" == "1" ]] && build_playlist; then
   # -re paces the file input at real time so it stays in step with the live
   # x11grab video; without it ffmpeg would read audio as fast as the muxer
-  # lets it. aresample async=1 papers over the tiny timestamp gaps between
-  # tracks of differing sample rates/channel layouts.
+  # lets it. aresample async=1 papers over the sub-second timestamp gaps
+  # between tracks (header duration vs. real length).
+  #
+  # Do NOT add first_pts=0 here. A library with mixed sample rates (this one
+  # has 48k, 44.1k and 11.025k files) makes ffmpeg rebuild the audio filter
+  # graph at every rate change, and a freshly built aresample with first_pts=0
+  # pads silence from t=0 up to the current position -- minutes of dead air
+  # at each such track boundary, then music again. Reproduced and fixed
+  # 2026-11-07; see the git history of this line.
   AUDIO_INPUT=(-re -f concat -safe 0 -i "${PLAYLIST}")
-  AUDIO_FILTER=(-af "aresample=44100:async=1:first_pts=0,aformat=sample_fmts=fltp:channel_layouts=stereo,volume=${MUSIC_VOLUME}")
+  AUDIO_FILTER=(-af "aresample=44100:async=1,aformat=sample_fmts=fltp:channel_layouts=stereo,volume=${MUSIC_VOLUME}")
 else
   [[ "${MUSIC}" == "1" ]] && log "music: no mp3 files found under ${MUSIC_DIR}; sending silence"
   AUDIO_INPUT=(-f lavfi -i anullsrc=channel_layout=stereo:sample_rate=44100)

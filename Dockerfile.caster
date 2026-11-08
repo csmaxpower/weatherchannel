@@ -43,7 +43,7 @@ RUN set -eux; \
       -f concat -safe 0 -i /tmp/playlist.txt \
       -t 1 \
       -vf "scale=in_range=full:out_range=limited:flags=lanczos+accurate_rnd" \
-      -af "aresample=44100:async=1:first_pts=0,aformat=sample_fmts=fltp:channel_layouts=stereo,volume=1.0" \
+      -af "aresample=44100:async=1,aformat=sample_fmts=fltp:channel_layouts=stereo,volume=1.0" \
       -c:v libx264 -preset ultrafast -tune stillimage -pix_fmt yuv420p \
       -crf 18 -maxrate 8000k -bufsize 16000k \
       -color_range tv -colorspace bt709 -color_primaries bt709 -color_trc bt709 \
