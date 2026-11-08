@@ -277,6 +277,13 @@ WeatherStar 4000+ supports background music during forecast playback. The music 
 
 When running with Node.js, the server generates a `playlist.json` file by scanning the `./server/music` directory for `.mp3` files. If no files are found in `./server/music`, it falls back to scanning `./server/music/default/`. The playlist is served dynamically at the `/playlist.json` endpoint.
 
+Two optional environment variables pick a subfolder instead, and are shared with the IPTV caster so the website and the stream play the same music:
+
+- `MUSIC_DIR` is the year-round folder, e.g. `default` or `/music/default` (the caster's spelling; the `/music/` prefix is stripped).
+- `MUSIC_SCHEDULE` switches folders by date: `folder=MM-DD:MM-DD[,...]`, start day included, end day excluded, ranges may wrap the year, first match wins. `christmas=11-01:01-01` plays `server/music/christmas` from Nov 1 through Dec 31. Dates are read in `TZ`.
+
+A scheduled folder that is missing or empty falls back to `MUSIC_DIR`, then to the scan above.
+
 **Adding your own music:** Place `.mp3` files in `./server/music/`
 
 **Docker server example:**

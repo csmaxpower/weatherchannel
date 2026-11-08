@@ -30,6 +30,10 @@ services:
       - MEDIAMTX_HOST=${MEDIAMTX_HOST:-10.30.0.54}
       - MEDIAMTX_PATH=${MEDIAMTX_PATH:-weather}
       - CHANNEL_NAME=${CHANNEL_NAME:-WeatherStar 4000+}
+      # The website's own player follows the same folder and season schedule
+      # as the caster, so visitors hear what the stream is playing.
+      - MUSIC_DIR=${MUSIC_DIR:-/music/default}
+      - MUSIC_SCHEDULE=${MUSIC_SCHEDULE:-christmas=11-01:01-01}
     # Uncomment to replace the bundled music for the website's player. The
     # caster has its own copy (see below); mount the same folder on both to
     # keep them identical.

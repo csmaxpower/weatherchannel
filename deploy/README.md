@@ -301,6 +301,15 @@ container's `TZ`. When the season flips it restarts only ffmpeg, so the stream
 blips for a few seconds and the browser is untouched. The log shows
 `music: season change /music/default -> /music/christmas`.
 
+**The website follows the same schedule.** The `ws4kp` service gets the same
+`MUSIC_DIR` and `MUSIC_SCHEDULE`, and its player picks the folder every time
+`/playlist.json` is requested, so a visitor who loads the page on Nov 1 hears
+Christmas while one who loaded it the night before keeps the old playlist
+until they reload. The web container log shows
+`music: website playlist is christmas (28 tracks)` when the choice changes.
+Both services read the folder as a name under `server/music`; the caster's
+`/music/` prefix is accepted and stripped so one `.env` serves both.
+
 **Adding or replacing tracks.** Music is part of the image, so it rides the
 same pipeline as code:
 
