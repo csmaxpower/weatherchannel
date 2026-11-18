@@ -68,8 +68,12 @@ services:
       - CHANNEL_ZIP=${CHANNEL_ZIP:-35406}
       - CHANNEL_LATLON=${CHANNEL_LATLON:-}
       - CHANNEL_QUERY=${CHANNEL_QUERY:-}
-      # Or bypass the builder entirely with a full URL:
-      # - PAGE_URL=http://localhost:8080/?latLonQuery=35406&kiosk=true
+      # WIDESCREEN=1 renders the page in the app's 16:9 Widescreen layout to
+      # match the 1920x1080 capture; 0 keeps the original 4:3 with pillarbox.
+      - WIDESCREEN=${WIDESCREEN:-1}
+      # Or bypass the builder entirely with a full URL (WIDESCREEN is then
+      # ignored, so include settings-wide-checkbox=true yourself):
+      # - PAGE_URL=http://localhost:8080/?latLonQuery=35406&kiosk=true&settings-wide-checkbox=true
       # --- outputs -----------------------------------------------------
       - MEDIAMTX_HOST=${MEDIAMTX_HOST:-10.30.0.54}
       - MEDIAMTX_PATH=${MEDIAMTX_PATH:-weather}

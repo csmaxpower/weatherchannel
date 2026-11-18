@@ -44,10 +44,15 @@ log() { echo "[caster] $*" >&2; }
 #   CHANNEL_QUERY  optional extra permalink parameters to append, e.g.
 #                  "travel-checkbox=true&settings-units-select=us".
 #                  Use the app's "Copy Permalink" button to discover them.
+#   WIDESCREEN     1 (default) turns on the app's Widescreen setting
+#                  (settings-wide-checkbox=true) so the page fills the 16:9
+#                  capture instead of pillarboxing its 4:3 stage. 0 keeps 4:3.
+#                  A settings-wide-checkbox value in CHANNEL_QUERY overrides it.
 WEB_URL="${WEB_URL:-http://localhost:8080/}"
 CHANNEL_ZIP="${CHANNEL_ZIP:-}"
 CHANNEL_LATLON="${CHANNEL_LATLON:-}"
 CHANNEL_QUERY="${CHANNEL_QUERY:-}"
+WIDESCREEN="${WIDESCREEN:-1}"
 
 urlencode() {
   local s="$1" out="" c
@@ -76,6 +81,14 @@ if [[ -z "${PAGE_URL:-}" ]]; then
   # music stays off (mediaPlaying is a sticky setting that defaults to false):
   # audio comes from ffmpeg below, so Chromium has nothing to decode.
   QS+="&kiosk=true"
+  # Widescreen is a sticky setting, but the caster's Chromium profile is
+  # throwaway, so it has to be in the URL on every load. CHANNEL_QUERY is
+  # appended after it and wins if it sets the same key (last value counts).
+  if [[ "${WIDESCREEN}" == "1" ]]; then
+    QS+="&settings-wide-checkbox=true"
+  else
+    QS+="&settings-wide-checkbox=false"
+  fi
   [[ -n "${CHANNEL_QUERY}" ]] && QS+="&${CHANNEL_QUERY#&}"
   PAGE_URL="${WEB_URL%%\?*}?${QS}"
 fi
